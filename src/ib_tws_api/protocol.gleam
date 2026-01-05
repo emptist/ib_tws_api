@@ -2,6 +2,7 @@ import gleam/bit_array
 import gleam/float
 import gleam/int
 import gleam/option
+import gleam/result
 import gleam/string
 import ib_tws_api/types
 
@@ -13,9 +14,15 @@ pub type Message {
   Ping
   Pong
   MarketDataRequest(req_id: Int, contract: types.Contract)
+  CancelMarketData(req_id: Int)
   MarketDataTick(ticker_id: Int, tick_type: Int, value: Float)
   OrderPlace(order: types.Order)
+  CancelOrder(order_id: Int)
   OrderStatus(order_id: Int, status: String, filled: Float, remaining: Float)
+  OpenOrder(order: types.Order)
+  OpenOrderEnd
+  ExecutionDetail(execution: types.Execution)
+  ExecutionDetailEnd
   AccountSummaryRequest(req_id: Int, group: String, tags: List(String))
   AccountSummary(account: String, tag: String, value: String, currency: String)
   PositionsRequest
@@ -25,6 +32,15 @@ pub type Message {
     position: Float,
     avg_cost: Float,
   )
+  RealTimeBarsRequest(
+    req_id: Int,
+    contract: types.Contract,
+    bar_size: Int,
+    what_to_show: String,
+    use_rth: Bool,
+  )
+  RealTimeBar(bar: types.RealTimeBar)
+  CancelRealTimeBars(req_id: Int)
   Unknown(message_id: Int, data: BitArray)
 }
 
@@ -35,13 +51,27 @@ pub const min_server_ver = 1
 pub fn encode_message(msg: Message) -> BitArray {
   case msg {
     ConnectRequest(client_id) -> encode_connect_request(client_id)
+    Disconnect -> encode_disconnect()
+    Ping -> encode_ping()
+    Pong -> encode_pong()
     MarketDataRequest(req_id, contract) ->
       encode_market_data_request(req_id, contract)
+    CancelMarketData(req_id) -> encode_cancel_market_data(req_id)
     OrderPlace(order) -> encode_order_place(order)
+    CancelOrder(order_id) -> encode_cancel_order(order_id)
+    OpenOrder(order) -> encode_open_order(order)
     AccountSummaryRequest(req_id, group, tags) ->
       encode_account_summary_request(req_id, group, tags)
     PositionsRequest -> encode_positions_request()
-    Ping -> encode_ping()
+    RealTimeBarsRequest(req_id, contract, bar_size, what_to_show, use_rth) ->
+      encode_realtime_bars_request(
+        req_id,
+        contract,
+        bar_size,
+        what_to_show,
+        use_rth,
+      )
+    CancelRealTimeBars(req_id) -> encode_cancel_realtime_bars(req_id)
     _ -> <<>>
   }
 }
@@ -57,6 +87,11 @@ pub fn decode_message(data: BitArray) -> Result(Message, String) {
         6 -> decode_account_summary(data)
         61 -> decode_position(data)
         8 -> decode_ping(data)
+        47 -> decode_open_order(data)
+        48 -> Ok(OpenOrderEnd)
+        49 -> decode_execution_detail(data)
+        50 -> Ok(ExecutionDetailEnd)
+        52 -> decode_realtime_bar(data)
         _ -> Ok(Unknown(message_id, data))
       }
     }
@@ -66,7 +101,7 @@ pub fn decode_message(data: BitArray) -> Result(Message, String) {
 
 fn parse_message_id(data: BitArray) -> Result(Int, String) {
   case data {
-    <<message_id:32, _rest>> -> Ok(message_id)
+    <<message_id:int-size(32), _rest:bits>> -> Ok(message_id)
     _ -> Error("Invalid message format")
   }
 }
@@ -87,11 +122,11 @@ fn encode_connect_request(client_id: Int) -> BitArray {
 
 fn decode_connect_ack(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:32, version:32, rest:bits>> -> {
-      case decode_string_null_terminated(rest) {
-        Ok(#(server_time, _remaining)) -> Ok(ConnectAck(version, server_time))
-        Error(err) -> Error("Failed to decode server time: " <> err)
-      }
+    <<_message_id:int-size(32), version:int-size(32), rest:bits>> -> {
+      use #(server_time, _remaining) <- result.try(
+        decode_string_null_terminated(rest),
+      )
+      Ok(ConnectAck(version, server_time))
     }
     _ -> Error("Invalid connect ack format")
   }
@@ -99,11 +134,11 @@ fn decode_connect_ack(data: BitArray) -> Result(Message, String) {
 
 fn decode_connect_failed(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:32, rest:bits>> -> {
-      case decode_string_null_terminated(rest) {
-        Ok(#(reason, _remaining)) -> Ok(ConnectFailed(reason))
-        Error(err) -> Error("Failed to decode connect failed reason: " <> err)
-      }
+    <<_message_id:int-size(32), rest:bits>> -> {
+      use #(reason, _remaining) <- result.try(decode_string_null_terminated(
+        rest,
+      ))
+      Ok(ConnectFailed(reason))
     }
     _ -> Error("Invalid connect failed format")
   }
@@ -154,8 +189,13 @@ fn encode_market_data_request(req_id: Int, contract: types.Contract) -> BitArray
 
 fn decode_market_data_tick(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:32, ticker_id:32, tick_type:32, price:float, _rest>> ->
-      Ok(MarketDataTick(ticker_id, tick_type, price))
+    <<
+      _message_id:int-size(32),
+      ticker_id:int-size(32),
+      tick_type:int-size(32),
+      price:float,
+      _rest:bits,
+    >> -> Ok(MarketDataTick(ticker_id, tick_type, price))
     _ -> Error("Invalid market data tick format")
   }
 }
@@ -227,9 +267,105 @@ fn encode_order_place(order: types.Order) -> BitArray {
 
 fn decode_order_status(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:32, order_id:32, filled:float, remaining:float, _rest>> ->
-      Ok(OrderStatus(order_id, "", filled, remaining))
+    <<
+      _message_id:int-size(32),
+      order_id:int-size(32),
+      filled:float,
+      remaining:float,
+      _rest:bits,
+    >> -> Ok(OrderStatus(order_id, "", filled, remaining))
     _ -> Error("Invalid order status format")
+  }
+}
+
+fn decode_open_order(data: BitArray) -> Result(Message, String) {
+  case data {
+    <<_message_id:int-size(32), rest:bits>> -> {
+      use #(order_id, rest1) <- result.try(decode_int(rest))
+      use #(contract_id_str, rest2) <- result.try(decode_string_null_terminated(
+        rest1,
+      ))
+      use #(symbol, rest3) <- result.try(decode_string_null_terminated(rest2))
+      use #(security_type, rest4) <- result.try(decode_string_null_terminated(
+        rest3,
+      ))
+      use #(last_trade_date, rest5) <- result.try(decode_string_null_terminated(
+        rest4,
+      ))
+      use #(strike, rest6) <- result.try(decode_float(rest5))
+      use #(right, rest7) <- result.try(decode_string_null_terminated(rest6))
+      use #(multiplier, rest8) <- result.try(decode_string_null_terminated(
+        rest7,
+      ))
+      use #(exchange, rest9) <- result.try(decode_string_null_terminated(rest8))
+      use #(primary_exchange, rest10) <- result.try(
+        decode_string_null_terminated(rest9),
+      )
+      use #(currency, rest11) <- result.try(decode_string_null_terminated(
+        rest10,
+      ))
+      use #(_local_symbol, rest12) <- result.try(decode_string_null_terminated(
+        rest11,
+      ))
+      use #(_trading_class, rest13) <- result.try(decode_string_null_terminated(
+        rest12,
+      ))
+      use #(_action, rest14) <- result.try(decode_string_null_terminated(rest13))
+      use #(total_quantity, rest15) <- result.try(decode_float(rest14))
+      use #(_order_type, rest16) <- result.try(decode_string_null_terminated(
+        rest15,
+      ))
+      use #(limit_price, rest17) <- result.try(decode_float(rest16))
+      use #(stop_price, rest18) <- result.try(decode_float(rest17))
+      use #(_time_in_force, rest19) <- result.try(decode_string_null_terminated(
+        rest18,
+      ))
+      use #(_oca_group, rest20) <- result.try(decode_string_null_terminated(
+        rest19,
+      ))
+      use #(_account, rest21) <- result.try(decode_string_null_terminated(
+        rest20,
+      ))
+      use #(outside_rth, rest22) <- result.try(decode_int(rest21))
+      use #(hidden, rest23) <- result.try(decode_int(rest22))
+      use #(display_size, rest24) <- result.try(decode_float(rest23))
+      use #(trail_stop_price, rest25) <- result.try(decode_float(rest24))
+      use #(parent_id, _remaining) <- result.try(decode_int(rest25))
+
+      let _contract =
+        types.Contract(
+          contract_id: int.parse(contract_id_str) |> result.unwrap(0),
+          symbol: symbol,
+          security_type: security_type,
+          exchange: exchange,
+          currency: currency,
+          last_trade_date_or_contract_month: last_trade_date,
+          strike: strike,
+          right: right,
+          multiplier: multiplier,
+          primary_exchange: primary_exchange,
+        )
+      let order =
+        types.Order(
+          order_id: order_id,
+          client_id: 0,
+          action: "",
+          total_quantity: total_quantity,
+          order_type: "",
+          limit_price: option.Some(limit_price),
+          stop_price: option.Some(stop_price),
+          time_in_force: "",
+          oca_group: "",
+          account: "",
+          outside_rth: outside_rth == 1,
+          hidden: hidden == 1,
+          display_size: float.truncate(display_size),
+          trail_stop_price: option.Some(trail_stop_price),
+          parent_id: parent_id,
+        )
+      Ok(OpenOrder(order))
+    }
+    _ -> Error("Invalid open order format")
   }
 }
 
@@ -254,33 +390,15 @@ fn encode_account_summary_request(
 
 fn decode_account_summary(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:32, rest:bits>> -> {
-      case decode_int(rest) {
-        Ok(#(_req_id, rest1)) -> {
-          case decode_string_null_terminated(rest1) {
-            Ok(#(account, rest2)) -> {
-              case decode_string_null_terminated(rest2) {
-                Ok(#(tag, rest3)) -> {
-                  case decode_string_null_terminated(rest3) {
-                    Ok(#(value, rest4)) -> {
-                      case decode_string_null_terminated(rest4) {
-                        Ok(#(currency, _remaining)) ->
-                          Ok(AccountSummary(account, tag, value, currency))
-                        Error(err) ->
-                          Error("Failed to decode currency: " <> err)
-                      }
-                    }
-                    Error(err) -> Error("Failed to decode value: " <> err)
-                  }
-                }
-                Error(err) -> Error("Failed to decode tag: " <> err)
-              }
-            }
-            Error(err) -> Error("Failed to decode account: " <> err)
-          }
-        }
-        Error(err) -> Error("Failed to decode req_id: " <> err)
-      }
+    <<_message_id:int-size(32), rest:bits>> -> {
+      use #(_req_id, rest1) <- result.try(decode_int(rest))
+      use #(account, rest2) <- result.try(decode_string_null_terminated(rest1))
+      use #(tag, rest3) <- result.try(decode_string_null_terminated(rest2))
+      use #(value, rest4) <- result.try(decode_string_null_terminated(rest3))
+      use #(currency, _remaining) <- result.try(decode_string_null_terminated(
+        rest4,
+      ))
+      Ok(AccountSummary(account, tag, value, currency))
     }
     _ -> Error("Invalid account summary format")
   }
@@ -292,27 +410,12 @@ fn encode_positions_request() -> BitArray {
 
 fn decode_position(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:32, rest:bits>> -> {
-      case decode_string_null_terminated(rest) {
-        Ok(#(account, rest1)) -> {
-          case decode_contract(rest1) {
-            Ok(#(contract, rest2)) -> {
-              case decode_float(rest2) {
-                Ok(#(position, rest3)) -> {
-                  case decode_float(rest3) {
-                    Ok(#(avg_cost, _remaining)) ->
-                      Ok(Position(account, contract, position, avg_cost))
-                    Error(err) -> Error("Failed to decode avg_cost: " <> err)
-                  }
-                }
-                Error(err) -> Error("Failed to decode position: " <> err)
-              }
-            }
-            Error(err) -> Error("Failed to decode contract: " <> err)
-          }
-        }
-        Error(err) -> Error("Failed to decode account: " <> err)
-      }
+    <<_message_id:int-size(32), rest:bits>> -> {
+      use #(account, rest1) <- result.try(decode_string_null_terminated(rest))
+      use #(contract, rest2) <- result.try(decode_contract(rest1))
+      use #(position, rest3) <- result.try(decode_float(rest2))
+      use #(avg_cost, _remaining) <- result.try(decode_float(rest3))
+      Ok(Position(account, contract, position, avg_cost))
     }
     _ -> Error("Invalid position format")
   }
@@ -321,94 +424,38 @@ fn decode_position(data: BitArray) -> Result(Message, String) {
 fn decode_contract(
   data: BitArray,
 ) -> Result(#(types.Contract, BitArray), String) {
-  case decode_int(data) {
-    Ok(#(contract_id, rest1)) -> {
-      case decode_string_null_terminated(rest1) {
-        Ok(#(symbol, rest2)) -> {
-          case decode_string_null_terminated(rest2) {
-            Ok(#(security_type, rest3)) -> {
-              case decode_string_null_terminated(rest3) {
-                Ok(#(last_trade_date, rest4)) -> {
-                  case decode_float(rest4) {
-                    Ok(#(strike, rest5)) -> {
-                      case decode_string_null_terminated(rest5) {
-                        Ok(#(right, rest6)) -> {
-                          case decode_string_null_terminated(rest6) {
-                            Ok(#(multiplier, rest7)) -> {
-                              case decode_string_null_terminated(rest7) {
-                                Ok(#(exchange, rest8)) -> {
-                                  case decode_string_null_terminated(rest8) {
-                                    Ok(#(currency, rest9)) -> {
-                                      case
-                                        decode_string_null_terminated(rest9)
-                                      {
-                                        Ok(#(_local_symbol, rest10)) -> {
-                                          case
-                                            decode_string_null_terminated(
-                                              rest10,
-                                            )
-                                          {
-                                            Ok(#(_trading_class, remaining)) -> {
-                                              let contract =
-                                                types.Contract(
-                                                  contract_id: contract_id,
-                                                  symbol: symbol,
-                                                  security_type: security_type,
-                                                  exchange: exchange,
-                                                  currency: currency,
-                                                  last_trade_date_or_contract_month: last_trade_date,
-                                                  strike: strike,
-                                                  right: right,
-                                                  multiplier: multiplier,
-                                                  primary_exchange: "",
-                                                )
-                                              Ok(#(contract, remaining))
-                                            }
-                                            Error(err) ->
-                                              Error(
-                                                "Failed to decode trading_class: "
-                                                <> err,
-                                              )
-                                          }
-                                        }
-                                        Error(err) ->
-                                          Error(
-                                            "Failed to decode local_symbol: "
-                                            <> err,
-                                          )
-                                      }
-                                    }
-                                    Error(err) ->
-                                      Error(
-                                        "Failed to decode currency: " <> err,
-                                      )
-                                  }
-                                }
-                                Error(err) ->
-                                  Error("Failed to decode exchange: " <> err)
-                              }
-                            }
-                            Error(err) ->
-                              Error("Failed to decode multiplier: " <> err)
-                          }
-                        }
-                        Error(err) -> Error("Failed to decode right: " <> err)
-                      }
-                    }
-                    Error(err) -> Error("Failed to decode strike: " <> err)
-                  }
-                }
-                Error(err) -> Error("Failed to decode last_trade_date: " <> err)
-              }
-            }
-            Error(err) -> Error("Failed to decode security_type: " <> err)
-          }
-        }
-        Error(err) -> Error("Failed to decode symbol: " <> err)
-      }
-    }
-    Error(err) -> Error("Failed to decode contract_id: " <> err)
-  }
+  use #(contract_id, rest1) <- result.try(decode_int(data))
+  use #(symbol, rest2) <- result.try(decode_string_null_terminated(rest1))
+  use #(security_type, rest3) <- result.try(decode_string_null_terminated(rest2))
+  use #(last_trade_date, rest4) <- result.try(decode_string_null_terminated(
+    rest3,
+  ))
+  use #(strike, rest5) <- result.try(decode_float(rest4))
+  use #(right, rest6) <- result.try(decode_string_null_terminated(rest5))
+  use #(multiplier, rest7) <- result.try(decode_string_null_terminated(rest6))
+  use #(exchange, rest8) <- result.try(decode_string_null_terminated(rest7))
+  use #(currency, rest9) <- result.try(decode_string_null_terminated(rest8))
+  use #(_local_symbol, rest10) <- result.try(decode_string_null_terminated(
+    rest9,
+  ))
+  use #(_trading_class, remaining) <- result.try(decode_string_null_terminated(
+    rest10,
+  ))
+
+  let contract =
+    types.Contract(
+      contract_id: contract_id,
+      symbol: symbol,
+      security_type: security_type,
+      exchange: exchange,
+      currency: currency,
+      last_trade_date_or_contract_month: last_trade_date,
+      strike: strike,
+      right: right,
+      multiplier: multiplier,
+      primary_exchange: "",
+    )
+  Ok(#(contract, remaining))
 }
 
 fn encode_ping() -> BitArray {
@@ -417,8 +464,86 @@ fn encode_ping() -> BitArray {
 
 fn decode_ping(data: BitArray) -> Result(Message, String) {
   case data {
-    <<8:size(32), _rest>> -> Ok(Ping)
+    <<8:int-size(32), _rest:bits>> -> Ok(Ping)
     _ -> Error("Invalid ping format")
+  }
+}
+
+fn encode_disconnect() -> BitArray {
+  <<5:size(32)>>
+}
+
+fn encode_pong() -> BitArray {
+  <<9:size(32)>>
+}
+
+fn encode_cancel_market_data(req_id: Int) -> BitArray {
+  <<2:size(32), req_id:size(32)>>
+}
+
+fn encode_cancel_order(order_id: Int) -> BitArray {
+  let order_id_str = int.to_string(order_id)
+  <<4:size(32), order_id_str:utf8, 0:size(8)>>
+}
+
+fn encode_open_order(order: types.Order) -> BitArray {
+  encode_order_place(order)
+}
+
+fn decode_execution_detail(data: BitArray) -> Result(Message, String) {
+  case data {
+    <<_message_id:int-size(32), rest:bits>> -> {
+      use #(order_id, rest2) <- result.try(decode_int(rest))
+      use #(client_id, rest3) <- result.try(decode_int(rest2))
+      use #(exec_id, rest4) <- result.try(decode_string_null_terminated(rest3))
+      use #(time, rest5) <- result.try(decode_string_null_terminated(rest4))
+      use #(acct_number, rest6) <- result.try(decode_string_null_terminated(
+        rest5,
+      ))
+      use #(exchange, rest7) <- result.try(decode_string_null_terminated(rest6))
+      use #(side, rest8) <- result.try(decode_string_null_terminated(rest7))
+      use #(shares, rest9) <- result.try(decode_float(rest8))
+      use #(price, rest10) <- result.try(decode_float(rest9))
+      use #(perm_id, rest11) <- result.try(decode_int(rest10))
+      use #(client_order_id, rest12) <- result.try(decode_int(rest11))
+      use #(liquidation, rest13) <- result.try(decode_int(rest12))
+      use #(cum_qty, rest14) <- result.try(decode_float(rest13))
+      use #(avg_price, rest15) <- result.try(decode_float(rest14))
+      use #(order_ref, rest16) <- result.try(decode_string_null_terminated(
+        rest15,
+      ))
+      use #(ev_rule, rest17) <- result.try(decode_string_null_terminated(rest16))
+      use #(ev_multiplier, rest18) <- result.try(decode_float(rest17))
+      use #(model_code, rest19) <- result.try(decode_string_null_terminated(
+        rest18,
+      ))
+      use #(last_liquidity, _remaining) <- result.try(decode_int(rest19))
+
+      let execution =
+        types.Execution(
+          order_id: order_id,
+          client_id: client_id,
+          exec_id: exec_id,
+          time: time,
+          acct_number: acct_number,
+          exchange: exchange,
+          side: side,
+          shares: shares,
+          price: price,
+          perm_id: perm_id,
+          client_order_id: client_order_id,
+          liquidation: liquidation,
+          cum_qty: cum_qty,
+          avg_price: avg_price,
+          order_ref: order_ref,
+          ev_rule: ev_rule,
+          ev_multiplier: ev_multiplier,
+          model_code: model_code,
+          last_liquidity: last_liquidity,
+        )
+      Ok(ExecutionDetail(execution))
+    }
+    _ -> Error("Invalid execution detail format")
   }
 }
 
@@ -457,7 +582,7 @@ pub fn encode_int(i: Int) -> BitArray {
 
 pub fn decode_int(data: BitArray) -> Result(#(Int, BitArray), String) {
   case data {
-    <<i:32, rest:bits>> -> Ok(#(i, rest))
+    <<i:int-size(32), rest:bits>> -> Ok(#(i, rest))
     _ -> Error("Invalid integer format")
   }
 }
@@ -516,5 +641,84 @@ pub fn decode_string_list(
         Error(err) -> Error(err)
       }
     }
+  }
+}
+
+fn encode_realtime_bars_request(
+  req_id: Int,
+  contract: types.Contract,
+  bar_size: Int,
+  what_to_show: String,
+  use_rth: Bool,
+) -> BitArray {
+  let contract_id_str = int.to_string(contract.contract_id)
+  let bar_size_str = int.to_string(bar_size)
+  let use_rth_int = case use_rth {
+    True -> 1
+    False -> 0
+  }
+
+  <<
+    50:size(32),
+    req_id:size(32),
+    contract_id_str:utf8,
+    0:size(8),
+    contract.symbol:utf8,
+    0:size(8),
+    contract.security_type:utf8,
+    0:size(8),
+    contract.last_trade_date_or_contract_month:utf8,
+    0:size(8),
+    contract.strike:float,
+    contract.right:utf8,
+    0:size(8),
+    contract.multiplier:utf8,
+    0:size(8),
+    contract.exchange:utf8,
+    0:size(8),
+    contract.primary_exchange:utf8,
+    0:size(8),
+    contract.currency:utf8,
+    0:size(8),
+    bar_size_str:utf8,
+    0:size(8),
+    what_to_show:utf8,
+    0:size(8),
+    use_rth_int:size(32),
+  >>
+}
+
+fn encode_cancel_realtime_bars(req_id: Int) -> BitArray {
+  <<51:size(32), req_id:size(32)>>
+}
+
+fn decode_realtime_bar(data: BitArray) -> Result(Message, String) {
+  case data {
+    <<_message_id:int-size(32), rest:bits>> -> {
+      use #(req_id, rest1) <- result.try(decode_int(rest))
+      use #(time, rest2) <- result.try(decode_int(rest1))
+      use #(open, rest3) <- result.try(decode_float(rest2))
+      use #(high, rest4) <- result.try(decode_float(rest3))
+      use #(low, rest5) <- result.try(decode_float(rest4))
+      use #(close, rest6) <- result.try(decode_float(rest5))
+      use #(volume, rest7) <- result.try(decode_int(rest6))
+      use #(wap, rest8) <- result.try(decode_float(rest7))
+      use #(count, _remaining) <- result.try(decode_int(rest8))
+
+      let bar =
+        types.RealTimeBar(
+          req_id: req_id,
+          time: time,
+          open: open,
+          high: high,
+          low: low,
+          close: close,
+          volume: volume,
+          wap: wap,
+          count: count,
+        )
+      Ok(RealTimeBar(bar))
+    }
+    _ -> Error("Invalid realtime bar format")
   }
 }

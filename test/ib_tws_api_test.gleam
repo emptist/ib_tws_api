@@ -1,4 +1,5 @@
 // import gleam/bit_array
+import gleam/int
 import gleam/io
 import gleam/option
 import gleam/string
@@ -59,6 +60,36 @@ pub fn order_creation_test() {
 
 pub fn protocol_encode_connect_request_test() {
   let msg = protocol.ConnectRequest(1)
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_encode_disconnect_test() {
+  let msg = protocol.Disconnect
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_encode_ping_test() {
+  let msg = protocol.Ping
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_encode_pong_test() {
+  let msg = protocol.Pong
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_encode_cancel_market_data_test() {
+  let msg = protocol.CancelMarketData(100)
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_encode_cancel_order_test() {
+  let msg = protocol.CancelOrder(1001)
   let data = protocol.encode_message(msg)
   data |> should.not_equal(<<>>)
 }
@@ -216,5 +247,208 @@ pub fn protocol_decode_float_test() {
       rest |> should.equal(<<>>)
     }
     Error(_) -> should.be_true(False)
+  }
+}
+
+pub fn protocol_encode_open_order_test() {
+  let contract =
+    Contract(
+      contract_id: 123_456,
+      symbol: "AAPL",
+      security_type: "STK",
+      exchange: "SMART",
+      currency: "USD",
+      last_trade_date_or_contract_month: "",
+      strike: 0.0,
+      right: "",
+      multiplier: "",
+      primary_exchange: "",
+    )
+  let order =
+    Order(
+      order_id: 1001,
+      client_id: 1,
+      order_type: "MKT",
+      action: "BUY",
+      total_quantity: 100.0,
+      limit_price: option.None,
+      stop_price: option.None,
+      time_in_force: "DAY",
+      oca_group: "",
+      account: "DU123456",
+      outside_rth: False,
+      hidden: False,
+      display_size: 0,
+      trail_stop_price: option.None,
+      parent_id: 0,
+    )
+  let msg = protocol.OpenOrder(order)
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_decode_open_order_test() {
+  let order_id = 1001
+  let contract_id = 123_456
+  let contract_id_str = int.to_string(contract_id)
+  let symbol = "AAPL"
+  let security_type = "STK"
+  let last_trade_date = ""
+  let strike = 0.0
+  let right = ""
+  let multiplier = ""
+  let exchange = "SMART"
+  let primary_exchange = ""
+  let currency = "USD"
+  let local_symbol = ""
+  let trading_class = ""
+  let action = "BUY"
+  let total_quantity = 100.0
+  let order_type = "MKT"
+  let limit_price = 150.0
+  let stop_price = 149.0
+  let time_in_force = "DAY"
+  let oca_group = ""
+  let account = "DU123456"
+  let outside_rth = 0
+  let hidden = 0
+  let display_size = 0.0
+  let trail_stop_price = 0.0
+  let parent_id = 0
+
+  let data = <<
+    47:size(32),
+    order_id:size(32),
+    contract_id_str:utf8,
+    0:size(8),
+    symbol:utf8,
+    0:size(8),
+    security_type:utf8,
+    0:size(8),
+    last_trade_date:utf8,
+    0:size(8),
+    strike:float,
+    right:utf8,
+    0:size(8),
+    multiplier:utf8,
+    0:size(8),
+    exchange:utf8,
+    0:size(8),
+    primary_exchange:utf8,
+    0:size(8),
+    currency:utf8,
+    0:size(8),
+    local_symbol:utf8,
+    0:size(8),
+    trading_class:utf8,
+    0:size(8),
+    action:utf8,
+    0:size(8),
+    total_quantity:float,
+    order_type:utf8,
+    0:size(8),
+    limit_price:float,
+    stop_price:float,
+    time_in_force:utf8,
+    0:size(8),
+    oca_group:utf8,
+    0:size(8),
+    account:utf8,
+    0:size(8),
+    outside_rth:size(32),
+    hidden:size(32),
+    display_size:float,
+    trail_stop_price:float,
+    parent_id:size(32),
+  >>
+
+  case protocol.decode_message(data) {
+    Ok(protocol.OpenOrder(order)) -> {
+      order.order_id |> should.equal(order_id)
+      order.client_id |> should.equal(0)
+      order.total_quantity |> should.equal(total_quantity)
+    }
+    _ -> should.be_true(False)
+  }
+}
+
+pub fn protocol_decode_open_order_end_test() {
+  let data = <<48:size(32)>>
+
+  case protocol.decode_message(data) {
+    Ok(protocol.OpenOrderEnd) -> should.be_true(True)
+    _ -> should.be_true(False)
+  }
+}
+
+pub fn protocol_encode_realtime_bars_request_test() {
+  let contract =
+    types.Contract(
+      contract_id: 123_456,
+      symbol: "AAPL",
+      security_type: "STK",
+      exchange: "SMART",
+      currency: "USD",
+      last_trade_date_or_contract_month: "",
+      strike: 0.0,
+      right: "",
+      multiplier: "",
+      primary_exchange: "",
+    )
+  let msg =
+    protocol.RealTimeBarsRequest(
+      req_id: 1,
+      contract: contract,
+      bar_size: 5,
+      what_to_show: "MIDPOINT",
+      use_rth: False,
+    )
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_encode_cancel_realtime_bars_test() {
+  let msg = protocol.CancelRealTimeBars(req_id: 1)
+  let data = protocol.encode_message(msg)
+  data |> should.not_equal(<<>>)
+}
+
+pub fn protocol_decode_realtime_bar_test() {
+  let req_id = 1
+  let time = 1234567890
+  let open = 150.0
+  let high = 151.0
+  let low = 149.0
+  let close = 150.5
+  let volume = 1000
+  let wap = 150.25
+  let count = 10
+
+  let data = <<
+    52:size(32),
+    req_id:size(32),
+    time:size(32),
+    open:float,
+    high:float,
+    low:float,
+    close:float,
+    volume:size(32),
+    wap:float,
+    count:size(32),
+  >>
+
+  case protocol.decode_message(data) {
+    Ok(protocol.RealTimeBar(bar)) -> {
+      bar.req_id |> should.equal(req_id)
+      bar.time |> should.equal(time)
+      bar.open |> should.equal(open)
+      bar.high |> should.equal(high)
+      bar.low |> should.equal(low)
+      bar.close |> should.equal(close)
+      bar.volume |> should.equal(volume)
+      bar.wap |> should.equal(wap)
+      bar.count |> should.equal(count)
+    }
+    _ -> should.be_true(False)
   }
 }
