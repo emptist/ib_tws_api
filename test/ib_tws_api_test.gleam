@@ -251,7 +251,7 @@ pub fn protocol_decode_float_test() {
 }
 
 pub fn protocol_encode_open_order_test() {
-  let contract =
+  let _contract =
     Contract(
       contract_id: 123_456,
       symbol: "AAPL",
@@ -415,7 +415,7 @@ pub fn protocol_encode_cancel_realtime_bars_test() {
 
 pub fn protocol_decode_realtime_bar_test() {
   let req_id = 1
-  let time = 1234567890
+  let time = 1_234_567_890
   let open = 150.0
   let high = 151.0
   let low = 149.0
