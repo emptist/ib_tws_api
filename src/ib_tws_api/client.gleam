@@ -35,7 +35,7 @@ pub fn connect(client: Client) -> Result(Client, ClientError) {
       
       case send_message(connected_client, protocol.ConnectRequest(client.client_id)) {
         Ok(_) -> {
-          case receive_message(connected_client, 5000) {
+          case receive_message(connected_client, 10000) {
             Ok(_) -> Ok(connected_client)
             Error(err) -> {
               let _ = socket.close_socket(socket)
