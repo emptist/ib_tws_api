@@ -1,10 +1,17 @@
+import gleam/dynamic.{type Dynamic}
 import ib_tws_api/protocol
+
+@external(erlang, "erlang", "binary_to_atom")
+pub fn make_binary_atom(data: BitArray, encoding: Dynamic) -> Dynamic
+
+@external(erlang, "erlang", "atom_to_binary")
+pub fn atom_to_binary(atom: Dynamic, encoding: Dynamic) -> BitArray
 
 @external(erlang, "gen_tcp", "connect")
 pub fn tcp_connect(
   host: String,
   port: Int,
-  options: List(#(String, Bool)),
+  options: List(#(String, Dynamic)),
 ) -> Result(Socket, String)
 
 @external(erlang, "gen_tcp", "send")
@@ -31,10 +38,10 @@ pub fn connect_socket(
   port: Int,
 ) -> Result(Socket, ConnectionError) {
   let options = [
-    #("binary", True),
-    #("packet", False),
-    #("active", False),
-    #("reuseaddr", True),
+    #("binary", make_binary_atom(<<"true">>)),
+    #("packet", make_binary_atom(<<"raw">>)),
+    #("active", make_binary_atom(<<"false">>)),
+    #("reuseaddr", make_binary_atom(<<"true">>)),
   ]
 
   case tcp_connect(host, port, options) {
