@@ -1,4 +1,4 @@
-import gleam/bit_array
+// import gleam/bit_array
 import gleam/io
 import gleam/option
 import gleam/string
