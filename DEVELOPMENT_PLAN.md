@@ -187,10 +187,12 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - Protocol documentation
 
 ### Phase 3: Real TWS Integration Testing
-**Status**: In Progress
+**Status**: In Progress - Blocked by message receiving issue
 
 **Tasks**:
-- [ ] Test connection to real TWS instance
+- [x] Test connection to real TWS instance
+- [x] Verify socket connection succeeds
+- [ ] Fix message receiving to handle continuous stream
 - [ ] Verify account discovery mechanism
 - [ ] Test account summary retrieval (funds, balances)
 - [ ] Test open orders retrieval
@@ -203,17 +205,21 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - [ ] Document real-world behavior and edge cases
 
 **Deliverables**:
-- Verified working connection to TWS
-- Account information retrieval confirmed
-- Order management tested
-- Market data streaming verified
-- Real-world testing documentation
+- [x] Verified working connection to TWS
+- [ ] Account information retrieval confirmed
+- [ ] Order management tested
+- [ ] Market data streaming verified
+- [ ] Real-world testing documentation
 
 **Progress Notes**:
-- test_connection.gleam exists but needs to be run against real TWS
-- Need to verify account IDs are discovered automatically upon connection
-- Need to test all message types with actual TWS responses
-- Need to document any protocol discrepancies or special cases
+- Socket connection to TWS succeeds on port 7496
+- ConnectRequest message is sent successfully
+- **Critical Issue**: `receive_message` function fails with `Error(Einval)` when trying to read from socket
+- Root cause: Using `tcp_recv(socket, 1, 0)` with timeout 0 causes "invalid argument" error
+- IB TWS API sends messages asynchronously in a continuous stream without length prefixes
+- Need to implement proper continuous message reading with buffering
+- Current approach of request/response pattern doesn't match TWS API's push-based architecture
+- Must redesign receive logic to continuously read and parse messages from the stream
 
 ### Phase 4: Client Management
 **Status**: Pending
@@ -455,36 +461,66 @@ The project will be considered successful when:
 
 ## Next Steps
 
-1. **Immediate**: Complete Phase 3 - Real TWS Integration Testing
-   - [x] Implement message encoding/decoding utilities
-   - [x] Create connection handshake logic
-   - [x] Test basic socket connection
-   - [ ] Test connection with real TWS instance
+### Immediate Priority: Fix Message Receiving (Blocking Phase 3)
+
+**Current Blocker**: Cannot receive messages from TWS due to `Error(Einval)` in `receive_message` function.
+
+**Required Actions**:
+1. **Fix receive_message function** in [socket.gleam](src/ib_tws_api/socket.gleam):
+   - Remove timeout 0 (causes einval error)
+   - Use proper timeout value from parameter
+   - Implement message buffering for partial reads
+   - Handle continuous message stream
+
+2. **Implement message stream processing**:
+   - Create buffer to accumulate incoming data
+   - Parse message IDs to detect message boundaries
+   - Extract complete messages from buffer
+   - Handle messages spanning multiple reads
+
+3. **Design message handling architecture**:
+   - Implement callback system for incoming messages
+   - Consider actor-based approach for concurrent message handling
+   - Design request/response correlation mechanism
+
+4. **Test with live TWS**:
+   - Verify ConnectAck is received after connection
+   - Test account summary request/response
+   - Test positions request/response
+   - Verify message stream handling works correctly
+
+### After Fixing Message Receiving
+
+5. **Complete Phase 3 - Real TWS Integration Testing**:
+   - [x] Test connection to real TWS instance
+   - [x] Verify socket connection succeeds
+   - [ ] Fix message receiving to handle continuous stream ← **CURRENT BLOCKER**
    - [ ] Verify account discovery mechanism
-   - [ ] Test account summary retrieval
+   - [ ] Test account summary retrieval (funds, balances)
    - [ ] Test open orders retrieval
    - [ ] Test positions retrieval
    - [ ] Test market data subscription
    - [ ] Test real-time bars subscription
    - [ ] Test order placement (paper trading)
    - [ ] Test order cancellation
+   - [ ] Test execution detail retrieval
    - [ ] Document real-world testing results
 
-2. **Short-term**: Begin Phase 4 - Client Features
+### Short-term: Begin Phase 4 - Client Features
    - [ ] Implement client lifecycle management
    - [ ] Add connection state tracking
    - [ ] Implement message queueing
    - [ ] Add automatic reconnection logic
    - [ ] Implement request/response correlation
 
-3. **Medium-term**: Complete Phase 5 - High-Level API
+### Medium-term: Complete Phase 5 - High-Level API
    - [ ] Implement account information retrieval API
    - [ ] Implement order management API
    - [ ] Implement market data subscription API
    - [ ] Implement position tracking API
    - [ ] Add event streaming API
 
-4. **Long-term**: Complete Phase 6 - Testing and Documentation
+### Long-term: Complete Phase 6 - Testing and Documentation
    - [ ] Create comprehensive integration test suite
    - [ ] Add property-based tests
    - [ ] Write complete API documentation
@@ -548,6 +584,60 @@ This section will be populated as we test against a real TWS instance.
    - [ ] Design user-friendly API
    - [ ] Implement client features (reconnection, message queueing)
    - [ ] Create examples and documentation
+
+## Technical Challenges and Solutions
+
+### Message Receiving Issue
+
+**Problem**: The `receive_message` function in [socket.gleam](src/ib_tws_api/socket.gleam) fails with `Error(Einval)` when attempting to read from the TWS socket.
+
+**Root Cause Analysis**:
+1. The current implementation uses `tcp_recv(socket, 1, 0)` with timeout 0
+2. Timeout 0 means "return immediately" - if no data is available, it returns `{error, einval}`
+3. IB TWS API uses a push-based, continuous message stream architecture
+4. Messages don't have length prefixes - they're just null-terminated fields concatenated together
+5. The server may send multiple messages in a single read, or a single message may span multiple reads
+
+**Current Problematic Code**:
+```gleam
+pub fn receive_message(
+  socket: Socket,
+  timeout: Int,
+) -> Result(protocol.Message, ConnectionError) {
+  case tcp_recv(socket, 1, 0) {  // ← Problem: timeout 0 causes einval
+    Ok(data) -> {
+      // ... process data
+    }
+    Error(err) -> {
+      // Returns Error(Einval) when no data available
+    }
+  }
+}
+```
+
+**Required Solution**:
+Implement a continuous message reading system with:
+1. Proper timeout handling (use actual timeout value, not 0)
+2. Message buffering to handle partial reads
+3. Continuous reading loop to process the message stream
+4. Message boundary detection (parse message ID to find start of each message)
+5. Callback or actor-based architecture to handle incoming messages asynchronously
+
+**Proposed Architecture**:
+```
+Client
+  ├── Socket (connected)
+  ├── Message Buffer (accumulates incoming data)
+  ├── Message Parser (extracts complete messages from buffer)
+  └── Message Handler (dispatches messages to callbacks/actors)
+```
+
+**Next Steps**:
+1. Implement proper `receive_message` with correct timeout handling
+2. Add message buffering to accumulate partial data
+3. Create message parser to extract complete messages from buffer
+4. Design callback/actor system for handling incoming messages
+5. Test with live TWS connection
 
 ## Technical Learnings
 
