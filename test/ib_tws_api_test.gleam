@@ -1,4 +1,6 @@
+import gleam/io
 import gleam/option
+import gleam/string
 import gleeunit
 import gleeunit/should
 import ib_tws_api
@@ -65,7 +67,10 @@ pub fn protocol_decode_connect_ack_test() {
   let server_time = "2024-01-01 12:00:00"
   let data = <<4:size(32), version:size(32), server_time:utf8, 0:size(8)>>
 
-  case protocol.decode_message(data) {
+  let result = protocol.decode_message(data)
+  io.println("ConnectAck result: " <> result |> string.inspect)
+
+  case result {
     Ok(protocol.ConnectAck(v, t)) -> {
       v |> should.equal(version)
       t |> should.equal(server_time)
