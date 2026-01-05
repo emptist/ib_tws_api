@@ -1,0 +1,123 @@
+import gleam/option
+import ib_tws_api/protocol
+import ib_tws_api/socket.{type Socket, SocketError as SocketConnectionError}
+
+pub type Client {
+  Client(
+    host: String,
+    port: Int,
+    client_id: Int,
+    socket: option.Option(Socket),
+    next_order_id: Int,
+  )
+}
+
+pub type ClientError {
+  ConnectionFailed(String)
+  AuthenticationFailed(String)
+  SocketError(String)
+}
+
+pub fn new_client(host host: String, port port: Int, client_id client_id: Int) -> Client {
+  Client(
+    host: host,
+    port: port,
+    client_id: client_id,
+    socket: option.None,
+    next_order_id: 0,
+  )
+}
+
+pub fn connect(client: Client) -> Result(Client, ClientError) {
+  case socket.connect_socket(client.host, client.port) {
+    Ok(socket) -> {
+      let connected_client = Client(..client, socket: option.Some(socket))
+      
+      case send_message(connected_client, protocol.ConnectRequest(client.client_id)) {
+        Ok(_) -> {
+          case receive_message(connected_client, 5000) {
+            Ok(_) -> Ok(connected_client)
+            Error(err) -> {
+              let _ = socket.close_socket(socket)
+              Error(err)
+            }
+          }
+        }
+        Error(err) -> {
+          let _ = socket.close_socket(socket)
+          Error(err)
+        }
+      }
+    }
+    Error(err) -> {
+      let error_msg = case err {
+        SocketConnectionError(msg) -> msg
+      }
+      Error(SocketError(error_msg))
+    }
+  }
+}
+
+pub fn send_message(client: Client, msg: protocol.Message) -> Result(
+  Nil,
+  ClientError,
+) {
+  case client.socket {
+    option.Some(socket) -> {
+      case socket.send_message(socket, msg) {
+        Ok(_) -> Ok(Nil)
+        Error(err) -> {
+          let error_msg = case err {
+            SocketConnectionError(msg) -> msg
+          }
+          Error(SocketError(error_msg))
+        }
+      }
+    }
+    option.None -> Error(SocketError("Client is not connected"))
+  }
+}
+
+pub fn receive_message(
+  client: Client,
+  timeout: Int,
+) -> Result(protocol.Message, ClientError) {
+  case client.socket {
+    option.Some(socket) -> {
+      case socket.receive_message(socket, timeout) {
+        Ok(msg) -> Ok(msg)
+        Error(err) -> {
+          let error_msg = case err {
+            SocketConnectionError(msg) -> msg
+          }
+          Error(SocketError(error_msg))
+        }
+      }
+    }
+    option.None -> Error(SocketError("Client is not connected"))
+  }
+}
+
+pub fn disconnect(client: Client) -> Result(Nil, ClientError) {
+  case client.socket {
+    option.Some(socket) -> {
+      case socket.close_socket(socket) {
+        Ok(_) -> Ok(Nil)
+        Error(err) -> {
+          let error_msg = case err {
+            SocketConnectionError(msg) -> msg
+          }
+          Error(SocketError(error_msg))
+        }
+      }
+    }
+    option.None -> Ok(Nil)
+  }
+}
+
+pub fn is_connected(client: Client) -> Bool {
+  case client.socket {
+    option.Some(_) -> True
+    option.None -> False
+  }
+}
