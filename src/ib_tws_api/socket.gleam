@@ -33,19 +33,19 @@ pub type ConnectionError {
   SocketError(String)
 }
 
-@external(erlang, "erlang", "binary_to_existing_atom")
-fn get_utf8_atom() -> Dynamic
+@external(erlang, "erlang", "binary_to_atom")
+fn get_latin1_atom() -> Dynamic
 
 pub fn connect_socket(
   host: String,
   port: Int,
 ) -> Result(Socket, ConnectionError) {
-  let utf8 = get_utf8_atom()
+  let latin1 = get_latin1_atom()
   let options = [
-    #("binary", make_binary_atom(<<"true">>, utf8)),
-    #("packet", make_binary_atom(<<"raw">>, utf8)),
-    #("active", make_binary_atom(<<"false">>, utf8)),
-    #("reuseaddr", make_binary_atom(<<"true">>, utf8)),
+    #("binary", make_binary_atom(<<"true">>, latin1)),
+    #("packet", make_binary_atom(<<"raw">>, latin1)),
+    #("active", make_binary_atom(<<"false">>, latin1)),
+    #("reuseaddr", make_binary_atom(<<"true">>, latin1)),
   ]
 
   case tcp_connect(host, port, options) {

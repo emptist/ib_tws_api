@@ -186,7 +186,36 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - Implemented real-time bars functionality with message IDs 50 (request), 51 (cancel), and 52 (response)
 - Protocol documentation
 
-### Phase 3: Client Management
+### Phase 3: Real TWS Integration Testing
+**Status**: In Progress
+
+**Tasks**:
+- [ ] Test connection to real TWS instance
+- [ ] Verify account discovery mechanism
+- [ ] Test account summary retrieval (funds, balances)
+- [ ] Test open orders retrieval
+- [ ] Test positions retrieval
+- [ ] Test market data subscription
+- [ ] Test real-time bars subscription
+- [ ] Test order placement (paper trading only)
+- [ ] Test order cancellation
+- [ ] Test execution detail retrieval
+- [ ] Document real-world behavior and edge cases
+
+**Deliverables**:
+- Verified working connection to TWS
+- Account information retrieval confirmed
+- Order management tested
+- Market data streaming verified
+- Real-world testing documentation
+
+**Progress Notes**:
+- test_connection.gleam exists but needs to be run against real TWS
+- Need to verify account IDs are discovered automatically upon connection
+- Need to test all message types with actual TWS responses
+- Need to document any protocol discrepancies or special cases
+
+### Phase 4: Client Management
 **Status**: Pending
 
 **Tasks**:
@@ -201,7 +230,7 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - Connection management features
 - Request/response handling
 
-### Phase 4: High-Level API
+### Phase 5: High-Level API
 **Status**: Pending
 
 **Tasks**:
@@ -216,7 +245,7 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - Example applications
 - API documentation
 
-### Phase 5: Testing and Documentation
+### Phase 6: Testing and Documentation
 **Status**: Pending
 
 **Tasks**:
@@ -238,17 +267,53 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - Test encoding/decoding functions with known inputs
 - Test error handling paths
 - Test edge cases and boundary conditions
+- **Status**: ✅ Complete - 22 tests passing
 
 ### Integration Tests
 - Test socket connection with mock TWS server
 - Test message exchange sequences
 - Test error scenarios (disconnection, timeout, etc.)
 - Test concurrent operations
+- **Status**: ⏳ Pending
+
+### Real TWS Integration Tests
+- Test connection to live TWS instance
+- Verify account discovery mechanism
+- Test account summary retrieval (funds, balances)
+- Test open orders retrieval
+- Test positions retrieval
+- Test market data subscription
+- Test real-time bars subscription
+- Test order placement (paper trading only)
+- Test order cancellation
+- Test execution detail retrieval
+- Document real-world behavior and edge cases
+- **Status**: ⏳ In Progress
+
+**Real TWS Testing Checklist**:
+- [ ] Connection to TWS (port 7496 for live, 7497 for paper)
+- [ ] Account discovery - verify accounts are retrieved after connection
+- [ ] Account summary - retrieve TotalCashBalance, NetLiquidation, etc.
+- [ ] Open orders - retrieve all open orders
+- [ ] Positions - retrieve current positions
+- [ ] Market data - subscribe to AAPL quotes
+- [ ] Real-time bars - subscribe to 5-second bars
+- [ ] Order placement - place a limit order (paper trading)
+- [ ] Order cancellation - cancel the placed order
+- [ ] Execution details - retrieve execution reports
+
+**Testing Environment**:
+- Use IB Gateway Paper Trading for safe testing
+- Port: 7497 (default paper trading port)
+- Client ID: Any unique integer (e.g., 1)
+- No API key or account ID needed for connection
+- Accounts discovered automatically after connection
 
 ### Property-Based Tests
 - Test encoding/decoding round-trip properties
 - Test message ordering invariants
 - Test state transition properties
+- **Status**: ⏳ Pending
 
 ### Test Organization
 ```
@@ -287,30 +352,44 @@ test/ib_tws_api/
 - Implement connection handshake
 - Send/receive basic messages
 - **Success Criteria**: Can connect and receive server acknowledgment
+- **Status**: ✅ Complete
 
 ### Milestone 2: Protocol Implementation (Week 2-3)
 - Implement encoding/decoding for all message types
 - Add message validation
 - Handle protocol versioning
 - **Success Criteria**: All message types can be encoded/decoded correctly
+- **Status**: ✅ Complete
 
-### Milestone 3: Client Features (Week 4)
+### Milestone 3: Real TWS Integration Testing (Week 4)
+- Test connection to real TWS instance
+- Verify account discovery mechanism
+- Test account summary retrieval
+- Test order management
+- Test market data subscription
+- **Success Criteria**: Can retrieve real account information and place orders
+- **Status**: ⏳ In Progress
+
+### Milestone 4: Client Features (Week 5)
 - Implement client lifecycle management
 - Add request/response correlation
 - Implement automatic reconnection
 - **Success Criteria**: Client can handle connection failures gracefully
+- **Status**: ⏳ Pending
 
-### Milestone 4: High-Level API (Week 5-6)
+### Milestone 5: High-Level API (Week 6-7)
 - Implement account information retrieval
 - Implement order management
 - Implement market data subscription
 - **Success Criteria**: Can retrieve account info and place orders
+- **Status**: ⏳ Pending
 
-### Milestone 5: Testing and Polish (Week 7-8)
+### Milestone 6: Testing and Polish (Week 8)
 - Complete test coverage
 - Write documentation
 - Create examples
 - **Success Criteria**: Ready for public release
+- **Status**: ⏳ Pending
 
 ## Risk Mitigation
 
@@ -376,25 +455,96 @@ The project will be considered successful when:
 
 ## Next Steps
 
-1. **Immediate**: Complete Phase 1 foundation work
+1. **Immediate**: Complete Phase 3 - Real TWS Integration Testing
    - [x] Implement message encoding/decoding utilities
    - [x] Create connection handshake logic
    - [x] Test basic socket connection
    - [ ] Test connection with real TWS instance
+   - [ ] Verify account discovery mechanism
+   - [ ] Test account summary retrieval
+   - [ ] Test open orders retrieval
+   - [ ] Test positions retrieval
+   - [ ] Test market data subscription
+   - [ ] Test real-time bars subscription
+   - [ ] Test order placement (paper trading)
+   - [ ] Test order cancellation
+   - [ ] Document real-world testing results
 
-2. **Short-term**: Begin Phase 2 protocol implementation
-   - [x] Implement encoding for remaining message types (MarketData, Orders, etc.)
-   - [x] Implement decoding for remaining message types
-   - [x] Add comprehensive tests for all message types
-   - [ ] Test connection handshake with real TWS
+2. **Short-term**: Begin Phase 4 - Client Features
+   - [ ] Implement client lifecycle management
+   - [ ] Add connection state tracking
+   - [ ] Implement message queueing
+   - [ ] Add automatic reconnection logic
+   - [ ] Implement request/response correlation
 
-3. **Medium-term**: Complete protocol implementation
-   - [x] Implement all message types from IB TWS API
-   - [x] Add comprehensive tests
-   - [ ] Document protocol details
-   - [ ] Handle protocol versioning
+3. **Medium-term**: Complete Phase 5 - High-Level API
+   - [ ] Implement account information retrieval API
+   - [ ] Implement order management API
+   - [ ] Implement market data subscription API
+   - [ ] Implement position tracking API
+   - [ ] Add event streaming API
 
-4. **Long-term**: Build high-level API
+4. **Long-term**: Complete Phase 6 - Testing and Documentation
+   - [ ] Create comprehensive integration test suite
+   - [ ] Add property-based tests
+   - [ ] Write complete API documentation
+   - [ ] Create usage examples
+   - [ ] Add performance benchmarks
+
+## Real TWS Testing Results
+
+This section will be populated as we test against a real TWS instance.
+
+### Connection Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Connect to TWS, receive ConnectAck with version and server time
+- **Test Command**: `gleam run --module ib_tws_api/test_connection`
+
+### Account Discovery
+- **Status**: Not yet tested
+- **Expected Behavior**: Accounts should be discovered automatically after connection
+- **Notes**: No account ID needed in connection request
+
+### Account Summary Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Retrieve account balances and funds
+- **Test Tags**: TotalCashBalance, NetLiquidation, AvailableFunds, etc.
+
+### Open Orders Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Retrieve all open orders
+- **Notes**: Should receive OpenOrder messages followed by OpenOrderEnd
+
+### Positions Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Retrieve current positions
+- **Notes**: Should receive Position messages for each position
+
+### Market Data Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Subscribe to market data and receive tick updates
+- **Test Contract**: AAPL stock
+- **Expected Ticks**: Bid, Ask, Last, Volume, etc.
+
+### Real-Time Bars Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Subscribe to real-time bars and receive periodic updates
+- **Test Parameters**: 5-second bars for AAPL
+
+### Order Placement Testing
+- **Status**: Not yet tested (paper trading only)
+- **Expected Behavior**: Place a limit order and receive order status updates
+- **Safety**: Only test with paper trading account
+
+### Order Cancellation Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Cancel an open order and receive confirmation
+- **Notes**: Should test with orders placed in previous test
+
+### Execution Details Testing
+- **Status**: Not yet tested
+- **Expected Behavior**: Retrieve execution details for filled orders
+- **Notes**: Should receive ExecutionDetail messages followed by ExecutionDetailEnd
    - [ ] Design user-friendly API
    - [ ] Implement client features (reconnection, message queueing)
    - [ ] Create examples and documentation
