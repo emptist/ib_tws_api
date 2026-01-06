@@ -24,18 +24,18 @@ pub type ConnectionError {
   SocketError(String)
 }
 
-@external(erlang, "socket_options", "make_options")
-fn make_socket_options(packet_mode: Int, active_mode: Int) -> Dynamic
+@external(erlang, "socket_options", "make_address")
+fn make_address(a: Int, b: Int, c: Int, d: Int) -> Dynamic
 
-@external(erlang, "gen_tcp", "connect")
-fn tcp_connect(
+@external(erlang, "socket_helper", "connect")
+fn socket_connect(
   address: Dynamic,
   port: Int,
   options: Dynamic,
 ) -> Result(Socket, Dynamic)
 
-@external(erlang, "erlang", "list_to_tuple")
-fn list_to_tuple(list: List(Int)) -> Dynamic
+@external(erlang, "socket_helper", "connect")
+fn tcp_connect(address: Dynamic, port: Int) -> Result(Socket, Dynamic)
 
 fn parse_ip_string(host: String) -> Result(Dynamic, String) {
   let parts = string.split(host, ".")
@@ -43,7 +43,7 @@ fn parse_ip_string(host: String) -> Result(Dynamic, String) {
     [a, b, c, d] -> {
       case int.parse(a), int.parse(b), int.parse(c), int.parse(d) {
         Ok(a_int), Ok(b_int), Ok(c_int), Ok(d_int) -> {
-          Ok(list_to_tuple([a_int, b_int, c_int, d_int]))
+          Ok(make_address(a_int, b_int, c_int, d_int))
         }
         _, _, _, _ -> Error("Failed to parse IP octets")
       }
@@ -60,12 +60,10 @@ pub fn connect_socket(
 
   case parse_ip_string(host) {
     Ok(address_tuple) -> {
-      let options = make_socket_options(0, 0)
-      io.println("Created socket options: " <> string.inspect(options))
-      case tcp_connect(address_tuple, port, options) {
+      io.println("Parsed IP address: " <> string.inspect(address_tuple))
+      case tcp_connect(address_tuple, port) {
         Ok(socket) -> {
           io.println("Socket connected successfully")
-          io.println("Passive mode set")
           Ok(socket)
         }
         Error(err) -> {

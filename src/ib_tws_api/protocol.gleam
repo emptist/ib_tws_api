@@ -107,13 +107,10 @@ fn parse_message_id(data: BitArray) -> Result(Int, String) {
 }
 
 fn encode_connect_request(client_id: Int) -> BitArray {
-  let client_id_str = int.to_string(client_id)
+  let server_version = 76
   <<
-    0:int-little-size(32),
-    "76":utf8,
-    0:size(8),
-    client_id_str:utf8,
-    0:size(8),
+    server_version:int-big-size(32),
+    client_id:int-big-size(32),
   >>
 }
 
