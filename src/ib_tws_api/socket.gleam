@@ -33,6 +33,12 @@ fn make_tuple(size: Int, elem: Dynamic) -> Dynamic
 @external(erlang, "erlang", "setelement")
 fn set_element(index: Int, tuple: Dynamic, value: Dynamic) -> Dynamic
 
+@external(erlang, "erlang", "self")
+fn get_self() -> Dynamic
+
+@external(erlang, "gen_tcp", "controlling_process")
+fn set_controlling_process(socket: Socket, pid: Dynamic) -> Dynamic
+
 @external(erlang, "gen_tcp", "connect")
 fn tcp_connect(
   address: Dynamic,
@@ -82,33 +88,84 @@ pub fn receive_message(
   socket: Socket,
   timeout: Int,
 ) -> Result(protocol.Message, ConnectionError) {
+  receive_message_with_buffer(socket, <<>>, timeout)
+}
+
+fn receive_message_with_buffer(
+  socket: Socket,
+  buffer: BitArray,
+  timeout: Int,
+) -> Result(protocol.Message, ConnectionError) {
   io.println("Attempting to receive message with timeout: " <> int.to_string(timeout))
-  io.println("Socket: " <> string.inspect(socket))
+  io.println("Buffer size: " <> int.to_string(bit_array.byte_size(buffer)))
   
-  case tcp_recv(socket, 4096, timeout) {
-    Ok(data) -> {
-      io.println("Received data, length: " <> int.to_string(bit_array.byte_size(data)))
-      case data {
-        <<>> -> {
-          io.println("Connection closed by server")
-          Error(SocketError("Connection closed by server"))
+  case buffer {
+    <<>> -> {
+      case tcp_recv(socket, 4096, timeout) {
+        Ok(data) -> {
+          io.println("Received data, length: " <> int.to_string(bit_array.byte_size(data)))
+          case data {
+            <<>> -> {
+              io.println("Connection closed by server")
+              Error(SocketError("Connection closed by server"))
+            }
+            _ -> {
+              io.println("Combined buffer size: " <> int.to_string(bit_array.byte_size(data)))
+              case protocol.decode_message(data) {
+                Ok(msg) -> {
+                  io.println("Successfully decoded message")
+                  Ok(msg)
+                }
+                Error(err) -> {
+                  io.println("Decode error: " <> err)
+                  io.println("Need more data, receiving again...")
+                  receive_message_with_buffer(socket, data, timeout)
+                }
+              }
+            }
+          }
         }
-        _ -> {
-          case protocol.decode_message(data) {
-            Ok(msg) -> Ok(msg)
+        Error(err) -> {
+          io.println("Receive error: " <> string.inspect(err))
+          let error_msg = "Failed to receive message: " <> string.inspect(err)
+          io.println("Creating error with message: " <> error_msg)
+          Error(SocketError(error_msg))
+        }
+      }
+    }
+    _ -> {
+      io.println("Using existing buffer, size: " <> int.to_string(bit_array.byte_size(buffer)))
+      case protocol.decode_message(buffer) {
+        Ok(msg) -> {
+          io.println("Successfully decoded message")
+          Ok(msg)
+        }
+        Error(err) -> {
+          io.println("Decode error: " <> err)
+          io.println("Need more data, receiving again...")
+          case tcp_recv(socket, 4096, timeout) {
+            Ok(data) -> {
+              io.println("Received additional data, length: " <> int.to_string(bit_array.byte_size(data)))
+              case data {
+                <<>> -> {
+                  io.println("Connection closed by server")
+                  Error(SocketError("Connection closed by server"))
+                }
+                _ -> {
+                  let new_buffer = bit_array.append(buffer, data)
+                  io.println("New buffer size: " <> int.to_string(bit_array.byte_size(new_buffer)))
+                  receive_message_with_buffer(socket, new_buffer, timeout)
+                }
+              }
+            }
             Error(err) -> {
-              io.println("Decode error: " <> err)
-              Error(SocketError("Failed to decode message: " <> err))
+              io.println("Receive error: " <> string.inspect(err))
+              let error_msg = "Failed to receive message: " <> string.inspect(err)
+              Error(SocketError(error_msg))
             }
           }
         }
       }
-    }
-    Error(err) -> {
-      io.println("Receive error: " <> string.inspect(err))
-      let error_msg = "Failed to receive message: " <> string.inspect(err)
-      io.println("Creating error with message: " <> error_msg)
-      Error(SocketError(error_msg))
     }
   }
 }

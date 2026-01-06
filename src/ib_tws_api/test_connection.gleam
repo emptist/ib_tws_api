@@ -33,7 +33,7 @@ pub fn main() {
 
           io.println("Waiting for response...")
           case ib_tws_api.receive_message(connected_client, 5000) {
-            Ok(msg) -> {
+            Ok(#(msg, _updated_client)) -> {
               io.println("Received message:")
               io.println("  Type: " <> msg |> inspect_message_type)
 

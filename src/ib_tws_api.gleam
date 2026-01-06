@@ -64,6 +64,6 @@ pub fn send_message(
 pub fn receive_message(
   client: Client,
   timeout: Int,
-) -> Result(protocol.Message, ClientError) {
+) -> Result(#(protocol.Message, Client), ClientError) {
   client.receive_message(client, timeout)
 }

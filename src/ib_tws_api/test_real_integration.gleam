@@ -377,9 +377,9 @@ fn receive_messages_loop(
     True -> list.reverse(accumulator)
     False -> {
       case ib_tws_api.receive_message(client, timeout_ms) {
-        Ok(msg) -> {
+        Ok(#(msg, updated_client)) -> {
           let new_accumulator = [msg, ..accumulator]
-          receive_messages_loop(client, 1000, max_messages, new_accumulator)
+          receive_messages_loop(updated_client, 1000, max_messages, new_accumulator)
         }
         Error(_) -> list.reverse(accumulator)
       }

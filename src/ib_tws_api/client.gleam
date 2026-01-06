@@ -9,6 +9,7 @@ pub type Client {
     client_id: Int,
     socket: option.Option(Socket),
     next_order_id: Int,
+    buffer: BitArray,
   )
 }
 
@@ -25,18 +26,19 @@ pub fn new_client(host host: String, port port: Int, client_id client_id: Int) -
     client_id: client_id,
     socket: option.None,
     next_order_id: 0,
+    buffer: <<>>,
   )
 }
 
 pub fn connect(client: Client) -> Result(Client, ClientError) {
   case socket.connect_socket(client.host, client.port) {
     Ok(socket) -> {
-      let connected_client = Client(..client, socket: option.Some(socket))
+      let connected_client = Client(..client, socket: option.Some(socket), buffer: <<>>)
       
       case send_message(connected_client, protocol.ConnectRequest(client.client_id)) {
         Ok(_) -> {
           case receive_message(connected_client, 10000) {
-            Ok(_) -> Ok(connected_client)
+            Ok(#(_msg, updated_client)) -> Ok(updated_client)
             Error(err) -> {
               let _ = socket.close_socket(socket)
               Error(err)
@@ -81,11 +83,11 @@ pub fn send_message(client: Client, msg: protocol.Message) -> Result(
 pub fn receive_message(
   client: Client,
   timeout: Int,
-) -> Result(protocol.Message, ClientError) {
+) -> Result(#(protocol.Message, Client), ClientError) {
   case client.socket {
     option.Some(socket) -> {
       case socket.receive_message(socket, timeout) {
-        Ok(msg) -> Ok(msg)
+        Ok(msg) -> Ok(#(msg, client))
         Error(err) -> {
           let error_msg = case err {
             SocketConnectionError(msg) -> msg

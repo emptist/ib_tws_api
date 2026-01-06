@@ -101,29 +101,22 @@ pub fn decode_message(data: BitArray) -> Result(Message, String) {
 
 fn parse_message_id(data: BitArray) -> Result(Int, String) {
   case data {
-    <<message_id:int-size(32), _rest:bits>> -> Ok(message_id)
+    <<message_id:int-little-size(32), _rest:bits>> -> Ok(message_id)
     _ -> Error("Invalid message format")
   }
 }
 
 fn encode_connect_request(client_id: Int) -> BitArray {
-  let version_str = int.to_string(protocol_version)
-  let client_id_str = int.to_string(client_id)
-
   <<
-    version_str:utf8,
-    0:size(8),
-    client_id_str:utf8,
-    0:size(8),
+    protocol_version:int-little-size(32),
+    client_id:int-little-size(32),
   >>
 }
 
 fn decode_connect_ack(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:int-size(32), version:int-size(32), rest:bits>> -> {
-      use #(server_time, _remaining) <- result.try(
-        decode_string_null_terminated(rest),
-      )
+    <<_message_id:int-little-size(32), version:int-little-size(32), rest:bits>> -> {
+      use #(server_time, _remaining) <- result.try(decode_string_null_terminated(rest))
       Ok(ConnectAck(version, server_time))
     }
     _ -> Error("Invalid connect ack format")
@@ -132,7 +125,7 @@ fn decode_connect_ack(data: BitArray) -> Result(Message, String) {
 
 fn decode_connect_failed(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:int-size(32), rest:bits>> -> {
+    <<_message_id:int-little-size(32), rest:bits>> -> {
       use #(reason, _remaining) <- result.try(decode_string_null_terminated(
         rest,
       ))
@@ -143,31 +136,27 @@ fn decode_connect_failed(data: BitArray) -> Result(Message, String) {
 }
 
 fn encode_market_data_request(req_id: Int, contract: types.Contract) -> BitArray {
-  let contract_id_str = int.to_string(contract.contract_id)
   let symbol_str = contract.symbol
   let sec_type_str = contract.security_type
   let exchange_str = contract.exchange
   let currency_str = contract.currency
   let last_trade_date_str = contract.last_trade_date_or_contract_month
-  let strike_str = float.to_string(contract.strike)
   let right_str = contract.right
   let multiplier_str = contract.multiplier
   let primary_exchange_str = contract.primary_exchange
   let generic_tick_list = ""
 
   <<
-    9:size(32),
-    req_id:size(32),
-    contract_id_str:utf8,
-    0:size(8),
+    1:int-little-size(32),
+    req_id:int-little-size(32),
+    contract.contract_id:int-little-size(32),
     symbol_str:utf8,
     0:size(8),
     sec_type_str:utf8,
     0:size(8),
     last_trade_date_str:utf8,
     0:size(8),
-    strike_str:utf8,
-    0:size(8),
+    contract.strike:float,
     right_str:utf8,
     0:size(8),
     multiplier_str:utf8,
@@ -188,12 +177,14 @@ fn encode_market_data_request(req_id: Int, contract: types.Contract) -> BitArray
 fn decode_market_data_tick(data: BitArray) -> Result(Message, String) {
   case data {
     <<
-      _message_id:int-size(32),
-      ticker_id:int-size(32),
-      tick_type:int-size(32),
+      _message_id:int-little-size(32),
+      ticker_id:int-little-size(32),
+      tick_type:int-little-size(32),
       price:float,
       _rest:bits,
-    >> -> Ok(MarketDataTick(ticker_id, tick_type, price))
+    >> -> {
+      Ok(MarketDataTick(ticker_id, tick_type, price))
+    }
     _ -> Error("Invalid market data tick format")
   }
 }
@@ -231,7 +222,7 @@ fn encode_order_place(order: types.Order) -> BitArray {
   let parent_id_str = int.to_string(order.parent_id)
 
   <<
-    3:size(32),
+    3:int-little-size(32),
     order_id_str:utf8,
     0:size(8),
     client_id_str:utf8,
@@ -266,19 +257,21 @@ fn encode_order_place(order: types.Order) -> BitArray {
 fn decode_order_status(data: BitArray) -> Result(Message, String) {
   case data {
     <<
-      _message_id:int-size(32),
-      order_id:int-size(32),
+      _message_id:int-little-size(32),
+      order_id:int-little-size(32),
       filled:float,
       remaining:float,
       _rest:bits,
-    >> -> Ok(OrderStatus(order_id, "", filled, remaining))
+    >> -> {
+      Ok(OrderStatus(order_id, "", filled, remaining))
+    }
     _ -> Error("Invalid order status format")
   }
 }
 
 fn decode_open_order(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:int-size(32), rest:bits>> -> {
+    <<_message_id:int-little-size(32), rest:bits>> -> {
       use #(order_id, rest1) <- result.try(decode_int(rest))
       use #(contract_id_str, rest2) <- result.try(decode_string_null_terminated(
         rest1,
@@ -376,7 +369,7 @@ fn encode_account_summary_request(
   let tags_str = string.join(tags, ",")
 
   <<
-    6:size(32),
+    6:int-little-size(32),
     req_id_str:utf8,
     0:size(8),
     group:utf8,
@@ -388,7 +381,7 @@ fn encode_account_summary_request(
 
 fn decode_account_summary(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:int-size(32), rest:bits>> -> {
+    <<_message_id:int-little-size(32), rest:bits>> -> {
       use #(_req_id, rest1) <- result.try(decode_int(rest))
       use #(account, rest2) <- result.try(decode_string_null_terminated(rest1))
       use #(tag, rest3) <- result.try(decode_string_null_terminated(rest2))
@@ -403,12 +396,12 @@ fn decode_account_summary(data: BitArray) -> Result(Message, String) {
 }
 
 fn encode_positions_request() -> BitArray {
-  <<61:size(32)>>
+  <<61:int-little-size(32)>>
 }
 
 fn decode_position(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:int-size(32), rest:bits>> -> {
+    <<_message_id:int-little-size(32), rest:bits>> -> {
       use #(account, rest1) <- result.try(decode_string_null_terminated(rest))
       use #(contract, rest2) <- result.try(decode_contract(rest1))
       use #(position, rest3) <- result.try(decode_float(rest2))
@@ -457,31 +450,30 @@ fn decode_contract(
 }
 
 fn encode_ping() -> BitArray {
-  <<8:size(32)>>
+  <<8:int-little-size(32)>>
 }
 
 fn decode_ping(data: BitArray) -> Result(Message, String) {
   case data {
-    <<8:int-size(32), _rest:bits>> -> Ok(Ping)
+    <<_message_id:int-little-size(32), _rest:bits>> -> Ok(Ping)
     _ -> Error("Invalid ping format")
   }
 }
 
 fn encode_disconnect() -> BitArray {
-  <<5:size(32)>>
+  <<5:int-little-size(32)>>
 }
 
 fn encode_pong() -> BitArray {
-  <<9:size(32)>>
+  <<9:int-little-size(32)>>
 }
 
 fn encode_cancel_market_data(req_id: Int) -> BitArray {
-  <<2:size(32), req_id:size(32)>>
+  <<2:int-little-size(32), req_id:int-little-size(32)>>
 }
 
 fn encode_cancel_order(order_id: Int) -> BitArray {
-  let order_id_str = int.to_string(order_id)
-  <<4:size(32), order_id_str:utf8, 0:size(8)>>
+  <<4:int-little-size(32), order_id:int-little-size(32)>>
 }
 
 fn encode_open_order(order: types.Order) -> BitArray {
@@ -490,7 +482,7 @@ fn encode_open_order(order: types.Order) -> BitArray {
 
 fn decode_execution_detail(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:int-size(32), rest:bits>> -> {
+    <<_message_id:int-little-size(32), rest:bits>> -> {
       use #(order_id, rest2) <- result.try(decode_int(rest))
       use #(client_id, rest3) <- result.try(decode_int(rest2))
       use #(exec_id, rest4) <- result.try(decode_string_null_terminated(rest3))
@@ -575,12 +567,12 @@ fn do_decode_string_null_terminated(
 }
 
 pub fn encode_int(i: Int) -> BitArray {
-  <<i:size(32)>>
+  <<i:int-little-size(32)>>
 }
 
 pub fn decode_int(data: BitArray) -> Result(#(Int, BitArray), String) {
   case data {
-    <<i:int-size(32), rest:bits>> -> Ok(#(i, rest))
+    <<i:int-little-size(32), rest:bits>> -> Ok(#(i, rest))
     _ -> Error("Invalid integer format")
   }
 }
@@ -657,8 +649,8 @@ fn encode_realtime_bars_request(
   }
 
   <<
-    50:size(32),
-    req_id:size(32),
+    50:int-little-size(32),
+    req_id:int-little-size(32),
     contract_id_str:utf8,
     0:size(8),
     contract.symbol:utf8,
@@ -682,17 +674,17 @@ fn encode_realtime_bars_request(
     0:size(8),
     what_to_show:utf8,
     0:size(8),
-    use_rth_int:size(32),
+    use_rth_int:int-little-size(32),
   >>
 }
 
 fn encode_cancel_realtime_bars(req_id: Int) -> BitArray {
-  <<51:size(32), req_id:size(32)>>
+  <<51:int-little-size(32), req_id:int-little-size(32)>>
 }
 
 fn decode_realtime_bar(data: BitArray) -> Result(Message, String) {
   case data {
-    <<_message_id:int-size(32), rest:bits>> -> {
+    <<_message_id:int-little-size(32), rest:bits>> -> {
       use #(req_id, rest1) <- result.try(decode_int(rest))
       use #(time, rest2) <- result.try(decode_int(rest1))
       use #(open, rest3) <- result.try(decode_float(rest2))

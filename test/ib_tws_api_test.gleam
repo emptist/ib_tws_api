@@ -97,14 +97,14 @@ pub fn protocol_encode_cancel_order_test() {
 pub fn protocol_decode_connect_ack_test() {
   let version = 176
   let server_time = "2024-01-01 12:00:00"
-  let data = <<4:size(32), version:size(32), server_time:utf8, 0:size(8)>>
+  let data = <<4:int-little-size(32), version:int-little-size(32), server_time:utf8, 0:size(8)>>
 
   let result = protocol.decode_message(data)
   io.println("ConnectAck result: " <> result |> string.inspect)
 
   case result {
     Ok(protocol.ConnectAck(v, t)) -> {
-      v |> should.equal(version)
+      v |> should.equal(176)
       t |> should.equal(server_time)
     }
     _ -> should.be_true(False)
@@ -113,7 +113,7 @@ pub fn protocol_decode_connect_ack_test() {
 
 pub fn protocol_decode_connect_failed_test() {
   let error_msg = "Authentication failed"
-  let data = <<5:size(32), error_msg:utf8, 0:size(8)>>
+  let data = <<5:int-little-size(32), error_msg:utf8, 0:size(8)>>
 
   case protocol.decode_message(data) {
     Ok(protocol.ConnectFailed(msg)) -> {
@@ -129,8 +129,8 @@ pub fn protocol_decode_account_summary_test() {
   let value = "100000.00"
   let currency = "USD"
   let data = <<
-    6:size(32),
-    1:size(32),
+    6:int-little-size(32),
+    1:int-little-size(32),
     account:utf8,
     0:size(8),
     tag:utf8,
@@ -169,10 +169,10 @@ pub fn protocol_decode_position_test() {
   let avg_cost = 150.25
 
   let data = <<
-    61:size(32),
+    61:int-little-size(32),
     account:utf8,
     0:size(8),
-    contract_id:size(32),
+    contract_id:int-little-size(32),
     symbol:utf8,
     0:size(8),
     security_type:utf8,
@@ -226,7 +226,7 @@ pub fn protocol_decode_string_null_terminated_test() {
 
 pub fn protocol_decode_int_test() {
   let test_value = 123_456_789
-  let data = <<test_value:size(32)>>
+  let data = <<test_value:int-little-size(32)>>
 
   case protocol.decode_int(data) {
     Ok(#(value, rest)) -> {
@@ -317,8 +317,8 @@ pub fn protocol_decode_open_order_test() {
   let parent_id = 0
 
   let data = <<
-    47:size(32),
-    order_id:size(32),
+    47:int-little-size(32),
+    order_id:int-little-size(32),
     contract_id_str:utf8,
     0:size(8),
     symbol:utf8,
@@ -355,11 +355,11 @@ pub fn protocol_decode_open_order_test() {
     0:size(8),
     account:utf8,
     0:size(8),
-    outside_rth:size(32),
-    hidden:size(32),
+    outside_rth:int-little-size(32),
+    hidden:int-little-size(32),
     display_size:float,
     trail_stop_price:float,
-    parent_id:size(32),
+    parent_id:int-little-size(32),
   >>
 
   case protocol.decode_message(data) {
@@ -373,7 +373,7 @@ pub fn protocol_decode_open_order_test() {
 }
 
 pub fn protocol_decode_open_order_end_test() {
-  let data = <<48:size(32)>>
+  let data = <<48:int-little-size(32)>>
 
   case protocol.decode_message(data) {
     Ok(protocol.OpenOrderEnd) -> should.be_true(True)
@@ -425,16 +425,16 @@ pub fn protocol_decode_realtime_bar_test() {
   let count = 10
 
   let data = <<
-    52:size(32),
-    req_id:size(32),
-    time:size(32),
+    52:int-little-size(32),
+    req_id:int-little-size(32),
+    time:int-little-size(32),
     open:float,
     high:float,
     low:float,
     close:float,
-    volume:size(32),
+    volume:int-little-size(32),
     wap:float,
-    count:size(32),
+    count:int-little-size(32),
   >>
 
   case protocol.decode_message(data) {
