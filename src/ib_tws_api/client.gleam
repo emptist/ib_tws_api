@@ -86,8 +86,11 @@ pub fn receive_message(
 ) -> Result(#(protocol.Message, Client), ClientError) {
   case client.socket {
     option.Some(socket) -> {
-      case socket.receive_message(socket, timeout) {
-        Ok(msg) -> Ok(#(msg, client))
+      case socket.receive_message(socket, client.buffer, timeout) {
+        Ok(#(msg, remaining_buffer)) -> {
+          let updated_client = Client(..client, buffer: remaining_buffer)
+          Ok(#(msg, updated_client))
+        }
         Error(err) -> {
           let error_msg = case err {
             SocketConnectionError(msg) -> msg

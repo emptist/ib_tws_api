@@ -86,16 +86,17 @@ pub fn send_message(
 
 pub fn receive_message(
   socket: Socket,
+  buffer: BitArray,
   timeout: Int,
-) -> Result(protocol.Message, ConnectionError) {
-  receive_message_with_buffer(socket, <<>>, timeout)
+) -> Result(#(protocol.Message, BitArray), ConnectionError) {
+  receive_message_with_buffer(socket, buffer, timeout)
 }
 
 fn receive_message_with_buffer(
   socket: Socket,
   buffer: BitArray,
   timeout: Int,
-) -> Result(protocol.Message, ConnectionError) {
+) -> Result(#(protocol.Message, BitArray), ConnectionError) {
   io.println("Attempting to receive message with timeout: " <> int.to_string(timeout))
   io.println("Buffer size: " <> int.to_string(bit_array.byte_size(buffer)))
   
@@ -114,7 +115,7 @@ fn receive_message_with_buffer(
               case protocol.decode_message(data) {
                 Ok(msg) -> {
                   io.println("Successfully decoded message")
-                  Ok(msg)
+                  Ok(#(msg, <<>>))
                 }
                 Error(err) -> {
                   io.println("Decode error: " <> err)
@@ -138,7 +139,7 @@ fn receive_message_with_buffer(
       case protocol.decode_message(buffer) {
         Ok(msg) -> {
           io.println("Successfully decoded message")
-          Ok(msg)
+          Ok(#(msg, <<>>))
         }
         Error(err) -> {
           io.println("Decode error: " <> err)

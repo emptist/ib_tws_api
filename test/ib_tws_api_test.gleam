@@ -95,9 +95,9 @@ pub fn protocol_encode_cancel_order_test() {
 }
 
 pub fn protocol_decode_connect_ack_test() {
-  let version = 176
+  let version = "176"
   let server_time = "2024-01-01 12:00:00"
-  let data = <<4:int-little-size(32), version:int-little-size(32), server_time:utf8, 0:size(8)>>
+  let data = <<4:int-little-size(32), version:utf8, 0:int-size(8), server_time:utf8, 0:int-size(8)>>
 
   let result = protocol.decode_message(data)
   io.println("ConnectAck result: " <> result |> string.inspect)
