@@ -6,9 +6,11 @@ import gleam/string
 import ib_tws_api/protocol
 
 @external(erlang, "gen_tcp", "send")
+@external(javascript, "../ffi/socket_ffi.mjs", "send")
 pub fn tcp_send(socket: Socket, data: BitArray) -> Dynamic
 
 @external(erlang, "gen_tcp", "recv")
+@external(javascript, "../ffi/socket_ffi.mjs", "recv")
 pub fn tcp_recv(
   socket: Socket,
   length: Int,
@@ -16,6 +18,7 @@ pub fn tcp_recv(
 ) -> Result(BitArray, Dynamic)
 
 @external(erlang, "gen_tcp", "close")
+@external(javascript, "../ffi/socket_ffi.mjs", "close")
 pub fn tcp_close(socket: Socket) -> Dynamic
 
 pub type Socket
@@ -24,30 +27,13 @@ pub type ConnectionError {
   SocketError(String)
 }
 
-@external(erlang, "socket_options", "make_address")
-fn make_address(a: Int, b: Int, c: Int, d: Int) -> Dynamic
-
 @external(erlang, "socket_helper", "connect")
-fn socket_connect(
-  address: Dynamic,
-  port: Int,
-  options: Dynamic,
-) -> Result(Socket, Dynamic)
+@external(javascript, "../ffi/socket_ffi.mjs", "connect")
+fn tcp_connect(host: String, port: Int) -> Result(Socket, Dynamic)
 
-@external(erlang, "socket_helper", "connect")
-fn tcp_connect(address: Dynamic, port: Int) -> Result(Socket, Dynamic)
-
-fn parse_ip_string(host: String) -> Result(Dynamic, String) {
-  let parts = string.split(host, ".")
-  case parts {
-    [a, b, c, d] -> {
-      case int.parse(a), int.parse(b), int.parse(c), int.parse(d) {
-        Ok(a_int), Ok(b_int), Ok(c_int), Ok(d_int) -> {
-          Ok(make_address(a_int, b_int, c_int, d_int))
-        }
-        _, _, _, _ -> Error("Failed to parse IP octets")
-      }
-    }
+fn parse_ip_string(host: String) -> Result(String, String) {
+  case string.split(host, ".") {
+    [_, _, _, _] -> Ok(host)
     _ -> Error("Invalid IP address format")
   }
 }
@@ -59,9 +45,8 @@ pub fn connect_socket(
   io.println("Connecting to " <> host <> ":" <> int.to_string(port))
 
   case parse_ip_string(host) {
-    Ok(address_tuple) -> {
-      io.println("Parsed IP address: " <> string.inspect(address_tuple))
-      case tcp_connect(address_tuple, port) {
+    Ok(host_string) -> {
+      case tcp_connect(host_string, port) {
         Ok(socket) -> {
           io.println("Socket connected successfully")
           Ok(socket)

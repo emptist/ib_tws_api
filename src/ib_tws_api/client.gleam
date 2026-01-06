@@ -19,7 +19,11 @@ pub type ClientError {
   SocketError(String)
 }
 
-pub fn new_client(host host: String, port port: Int, client_id client_id: Int) -> Client {
+pub fn new_client(
+  host host: String,
+  port port: Int,
+  client_id client_id: Int,
+) -> Client {
   Client(
     host: host,
     port: port,
@@ -33,21 +37,48 @@ pub fn new_client(host host: String, port port: Int, client_id client_id: Int) -
 pub fn connect(client: Client) -> Result(Client, ClientError) {
   case socket.connect_socket(client.host, client.port) {
     Ok(socket) -> {
-      let connected_client = Client(..client, socket: option.Some(socket), buffer: <<>>)
-      
-      case send_message(connected_client, protocol.ConnectRequest(client.client_id)) {
+      let connected_client =
+        Client(..client, socket: option.Some(socket), buffer: <<>>)
+
+      // Send ConnectRequest
+      case
+        socket.send_message(socket, protocol.ConnectRequest(client.client_id))
+      {
         Ok(_) -> {
-          case receive_message(connected_client, 10000) {
-            Ok(#(_msg, updated_client)) -> Ok(updated_client)
+          // Wait for ConnectAck or ConnectFailed
+          case socket.receive_message(socket, <<>>, 10_000) {
+            Ok(#(msg, remaining_buffer)) -> {
+              case msg {
+                protocol.ConnectAck(_version, _server_time) -> {
+                  let updated_client =
+                    Client(..connected_client, buffer: remaining_buffer)
+                  Ok(updated_client)
+                }
+                protocol.ConnectFailed(reason) -> {
+                  let _ = socket.close_socket(socket)
+                  Error(AuthenticationFailed(reason))
+                }
+                _ -> {
+                  let _ = socket.close_socket(socket)
+                  Error(AuthenticationFailed("Unexpected response from server"))
+                }
+              }
+            }
             Error(err) -> {
               let _ = socket.close_socket(socket)
-              Error(err)
+              let error_msg = case err {
+                SocketConnectionError(msg) -> msg
+              }
+              Error(SocketError(error_msg))
             }
           }
         }
         Error(err) -> {
           let _ = socket.close_socket(socket)
-          Error(err)
+          let error_msg = case err {
+            SocketConnectionError(msg) -> msg
+          }
+          Error(SocketError(error_msg))
         }
       }
     }
@@ -60,10 +91,10 @@ pub fn connect(client: Client) -> Result(Client, ClientError) {
   }
 }
 
-pub fn send_message(client: Client, msg: protocol.Message) -> Result(
-  Nil,
-  ClientError,
-) {
+pub fn send_message(
+  client: Client,
+  msg: protocol.Message,
+) -> Result(Nil, ClientError) {
   case client.socket {
     option.Some(socket) -> {
       case socket.send_message(socket, msg) {
