@@ -15,6 +15,9 @@ pub fn main() {
   io.println("  Server version: " <> int.to_string(server_version))
   io.println("  Client ID: " <> int.to_string(client_id))
   io.println("")
+  io.println("Note: Client ID should be unique per connection")
+  io.println("Recommended: Use timestamp-based ID in range 1-999999")
+  io.println("")
 
   case socket.connect_socket("127.0.0.1", 7496) {
     Ok(s) -> {
