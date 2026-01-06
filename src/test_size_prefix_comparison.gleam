@@ -7,7 +7,7 @@ pub fn main() {
   io.println("=== TWS API Message Size Prefix Comparison Test ===")
   io.println("")
 
-  let client_id = 1
+  let _client_id = 1
   let version_str = "176"
   let client_id_str = "1"
 

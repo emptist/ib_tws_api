@@ -107,18 +107,14 @@ fn parse_message_id(data: BitArray) -> Result(Int, String) {
 }
 
 fn encode_connect_request(client_id: Int) -> BitArray {
-  let version_str = int.to_string(protocol_version)
   let client_id_str = int.to_string(client_id)
-  
-  let body =
-    <<
-      0:int-little-size(32),
-      version_str:utf8, 0:int-size(8),
-      client_id_str:utf8, 0:int-size(8),
-    >>
-  
-  let size = bit_array.byte_size(body)
-  <<size:int-little-size(32), body:bits>>
+  <<
+    0:int-little-size(32),
+    "76":utf8,
+    0:size(8),
+    client_id_str:utf8,
+    0:size(8),
+  >>
 }
 
 fn decode_connect_ack(data: BitArray) -> Result(Message, String) {

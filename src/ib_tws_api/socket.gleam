@@ -24,51 +24,59 @@ pub type ConnectionError {
   SocketError(String)
 }
 
-@external(erlang, "erlang", "binary_to_atom")
-fn binary_to_atom(binary: BitArray) -> Dynamic
-
-@external(erlang, "erlang", "make_tuple")
-fn make_tuple(size: Int, elem: Dynamic) -> Dynamic
-
-@external(erlang, "erlang", "setelement")
-fn set_element(index: Int, tuple: Dynamic, value: Dynamic) -> Dynamic
-
-@external(erlang, "erlang", "self")
-fn get_self() -> Dynamic
-
-@external(erlang, "gen_tcp", "controlling_process")
-fn set_controlling_process(socket: Socket, pid: Dynamic) -> Dynamic
+@external(erlang, "socket_options", "make_options")
+fn make_socket_options(packet_mode: Int, active_mode: Int) -> Dynamic
 
 @external(erlang, "gen_tcp", "connect")
 fn tcp_connect(
   address: Dynamic,
   port: Int,
-  options: List(Dynamic),
+  options: Dynamic,
 ) -> Result(Socket, Dynamic)
+
+@external(erlang, "erlang", "list_to_tuple")
+fn list_to_tuple(list: List(Int)) -> Dynamic
+
+fn parse_ip_string(host: String) -> Result(Dynamic, String) {
+  let parts = string.split(host, ".")
+  case parts {
+    [a, b, c, d] -> {
+      case int.parse(a), int.parse(b), int.parse(c), int.parse(d) {
+        Ok(a_int), Ok(b_int), Ok(c_int), Ok(d_int) -> {
+          Ok(list_to_tuple([a_int, b_int, c_int, d_int]))
+        }
+        _, _, _, _ -> Error("Failed to parse IP octets")
+      }
+    }
+    _ -> Error("Invalid IP address format")
+  }
+}
 
 pub fn connect_socket(
   host: String,
   port: Int,
 ) -> Result(Socket, ConnectionError) {
   io.println("Connecting to " <> host <> ":" <> int.to_string(port))
-  
-  let host_atom = binary_to_atom(<<host:utf8>>)
-  let active_atom = binary_to_atom(<<"active">>)
-  let false_atom = binary_to_atom(<<"false">>)
-  
-  let active_tuple = make_tuple(2, active_atom)
-  let active_tuple = set_element(2, active_tuple, false_atom)
-  
-  let options = [active_tuple]
-  
-  case tcp_connect(host_atom, port, options) {
-    Ok(socket) -> {
-      io.println("Socket connected successfully")
-      Ok(socket)
+
+  case parse_ip_string(host) {
+    Ok(address_tuple) -> {
+      let options = make_socket_options(0, 0)
+      io.println("Created socket options: " <> string.inspect(options))
+      case tcp_connect(address_tuple, port, options) {
+        Ok(socket) -> {
+          io.println("Socket connected successfully")
+          io.println("Passive mode set")
+          Ok(socket)
+        }
+        Error(err) -> {
+          io.println("Socket connection failed: " <> string.inspect(err))
+          Error(SocketError("Failed to connect: " <> string.inspect(err)))
+        }
+      }
     }
     Error(err) -> {
-      io.println("Socket connection failed: " <> string.inspect(err))
-      Error(SocketError("Failed to connect: " <> string.inspect(err)))
+      io.println("Failed to parse host address: " <> err)
+      Error(SocketError("Failed to parse host: " <> err))
     }
   }
 }
@@ -78,7 +86,9 @@ pub fn send_message(
   msg: protocol.Message,
 ) -> Result(Nil, ConnectionError) {
   let data = protocol.encode_message(msg)
-  io.println("Sending message, data length: " <> int.to_string(bit_array.byte_size(data)))
+  io.println(
+    "Sending message, data length: " <> int.to_string(bit_array.byte_size(data)),
+  )
   io.println("Data: " <> string.inspect(data))
   let _ = tcp_send(socket, data)
   Ok(Nil)
@@ -97,21 +107,29 @@ fn receive_message_with_buffer(
   buffer: BitArray,
   timeout: Int,
 ) -> Result(#(protocol.Message, BitArray), ConnectionError) {
-  io.println("Attempting to receive message with timeout: " <> int.to_string(timeout))
+  io.println(
+    "Attempting to receive message with timeout: " <> int.to_string(timeout),
+  )
   io.println("Buffer size: " <> int.to_string(bit_array.byte_size(buffer)))
-  
+
   case buffer {
     <<>> -> {
       case tcp_recv(socket, 4096, timeout) {
         Ok(data) -> {
-          io.println("Received data, length: " <> int.to_string(bit_array.byte_size(data)))
+          io.println(
+            "Received data, length: "
+            <> int.to_string(bit_array.byte_size(data)),
+          )
           case data {
             <<>> -> {
               io.println("Connection closed by server")
               Error(SocketError("Connection closed by server"))
             }
             _ -> {
-              io.println("Combined buffer size: " <> int.to_string(bit_array.byte_size(data)))
+              io.println(
+                "Combined buffer size: "
+                <> int.to_string(bit_array.byte_size(data)),
+              )
               case protocol.decode_message(data) {
                 Ok(msg) -> {
                   io.println("Successfully decoded message")
@@ -135,7 +153,10 @@ fn receive_message_with_buffer(
       }
     }
     _ -> {
-      io.println("Using existing buffer, size: " <> int.to_string(bit_array.byte_size(buffer)))
+      io.println(
+        "Using existing buffer, size: "
+        <> int.to_string(bit_array.byte_size(buffer)),
+      )
       case protocol.decode_message(buffer) {
         Ok(msg) -> {
           io.println("Successfully decoded message")
@@ -146,7 +167,10 @@ fn receive_message_with_buffer(
           io.println("Need more data, receiving again...")
           case tcp_recv(socket, 4096, timeout) {
             Ok(data) -> {
-              io.println("Received additional data, length: " <> int.to_string(bit_array.byte_size(data)))
+              io.println(
+                "Received additional data, length: "
+                <> int.to_string(bit_array.byte_size(data)),
+              )
               case data {
                 <<>> -> {
                   io.println("Connection closed by server")
@@ -154,14 +178,18 @@ fn receive_message_with_buffer(
                 }
                 _ -> {
                   let new_buffer = bit_array.append(buffer, data)
-                  io.println("New buffer size: " <> int.to_string(bit_array.byte_size(new_buffer)))
+                  io.println(
+                    "New buffer size: "
+                    <> int.to_string(bit_array.byte_size(new_buffer)),
+                  )
                   receive_message_with_buffer(socket, new_buffer, timeout)
                 }
               }
             }
             Error(err) -> {
               io.println("Receive error: " <> string.inspect(err))
-              let error_msg = "Failed to receive message: " <> string.inspect(err)
+              let error_msg =
+                "Failed to receive message: " <> string.inspect(err)
               Error(SocketError(error_msg))
             }
           }
