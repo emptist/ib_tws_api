@@ -192,7 +192,7 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - All 22 tests now passing
 
 ### Phase 3: Real TWS Integration Testing
-**Status**: In Progress - Investigating ConnectRequest format issue
+**Status**: In Progress - Investigating timeout issue with multiple approaches
 
 **Tasks**:
 - [x] Test connection to real TWS instance
@@ -200,7 +200,11 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - [x] Fix ConnectRequest format to use null-terminated strings for version and client_id
 - [x] Update ConnectAck decoding to handle string-based version field
 - [x] Update test cases to match new format
-- [ ] Test connection with corrected message format
+- [x] Test multiple ConnectRequest formats (8+ variations tested)
+- [x] Test format without message ID (string version)
+- [x] Test format without message ID (integer version)
+- [ ] Test connection with JavaScript externals approach
+- [ ] Compare behavior between Erlang and JavaScript implementations
 - [ ] Verify account discovery mechanism
 - [ ] Test account summary retrieval (funds, balances)
 - [ ] Test open orders retrieval
@@ -213,7 +217,7 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - [ ] Document real-world behavior and edge cases
 
 **Deliverables**:
-- [x] Verified working connection to TWS
+- [x] Verified working socket connection to TWS
 - [ ] Account information retrieval confirmed
 - [ ] Order management tested
 - [ ] Market data streaming verified
@@ -230,7 +234,22 @@ The IB TWS API uses a binary protocol where messages are composed of fields sepa
 - Updated test case in ib_tws_api_test.gleam to match new format
 - All 22 tests passing after format correction
 - **Current Issue**: Still receiving timeout when waiting for ConnectAck from TWS
-- Need to verify if the corrected format resolves the connection issue
+- **Multiple Format Tests**: Tested 8+ different ConnectRequest formats:
+  1. Message ID (0) + Version (int32) + Client ID (int32)
+  2. Message ID (0) + Version (string) + Client ID (string)
+  3. Version (int32) + Client ID (int32) [no message ID]
+  4. Version (string) + Client ID (string) [no message ID]
+  5. Message ID (0) + Version (int32) + Client ID (string)
+  6. Message ID (0) + Version (string) + Client ID (int32)
+  7. Version (string) + Client ID (string) [no message ID] - test_no_message_id.gleam
+  8. Version (int32) + Client ID (int32) [no message ID] - test_int_no_id.gleam
+- All formats result in timeout errors despite successful socket connection
+- TWS shows no connection when the command is stopped
+- **New Approach**: Investigating JavaScript externals to use Node.js net module
+  - Branch: `tryjs` created for JavaScript implementation
+  - Rationale: Leverage existing working JavaScript TWS API implementations
+  - Reference implementations: `@stoqey/ib`, `ib-tws-api` npm packages
+  - Goal: Compare behavior between Erlang and JavaScript implementations to isolate the issue
 
 ### Phase 4: Client Management
 **Status**: Pending
@@ -473,37 +492,67 @@ The project will be considered successful when:
 
 ## Next Steps
 
-### Immediate Priority: Fix Message Receiving (Blocking Phase 3)
+### Immediate Priority: Investigate Timeout Issue with Multiple Approaches (Blocking Phase 3)
 
-**Current Blocker**: Cannot receive messages from TWS due to `Error(Einval)` in `receive_message` function.
+**Current Blocker**: Socket connection to TWS succeeds, but all ConnectRequest formats result in timeout when waiting for ConnectAck. TWS shows no connection when the command is stopped.
+
+**Investigation Completed**:
+1. ✅ Fixed ConnectRequest format to use null-terminated strings
+2. ✅ Implemented message buffering for continuous stream processing
+3. ✅ Tested 8+ different ConnectRequest formats
+4. ✅ All formats result in timeout errors despite successful socket connection
+
+**New Approach: JavaScript Externals Investigation**
+
+**Rationale**:
+- Leverage existing working JavaScript TWS API implementations
+- Compare behavior between Erlang and JavaScript implementations
+- Isolate whether the issue is with Erlang socket handling or protocol format
+
+**Reference Implementations**:
+- `@stoqey/ib`: TypeScript API client for Node.js
+- `ib-tws-api`: ES6 module with async/await support, based on official API and Python version
 
 **Required Actions**:
-1. **Fix receive_message function** in [socket.gleam](src/ib_tws_api/socket.gleam):
-   - Remove timeout 0 (causes einval error)
-   - Use proper timeout value from parameter
-   - Implement message buffering for partial reads
-   - Handle continuous message stream
 
-2. **Implement message stream processing**:
-   - Create buffer to accumulate incoming data
-   - Parse message IDs to detect message boundaries
-   - Extract complete messages from buffer
-   - Handle messages spanning multiple reads
+1. **Research JavaScript socket implementation**:
+   - [x] Study Gleam JavaScript externals syntax (@external decorator)
+   - [x] Research Node.js net module for TCP sockets
+   - [x] Identify existing JavaScript TWS API implementations
+   - [ ] Create JavaScript socket wrapper using externals
 
-3. **Design message handling architecture**:
-   - Implement callback system for incoming messages
-   - Consider actor-based approach for concurrent message handling
-   - Design request/response correlation mechanism
+2. **Implement JavaScript-based socket**:
+   - [ ] Create socket_js.gleam module with JavaScript externals
+   - [ ] Implement connect function using Node.js net.connect
+   - [ ] Implement send function using socket.write
+   - [ ] Implement receive function using socket.on('data')
+   - [ ] Handle connection errors and timeouts
 
-4. **Test with live TWS**:
-   - Verify ConnectAck is received after connection
-   - Test account summary request/response
-   - Test positions request/response
-   - Verify message stream handling works correctly
+3. **Test with JavaScript implementation**:
+   - [ ] Test connection to TWS using JavaScript sockets
+   - [ ] Verify if ConnectAck is received
+   - [ ] Compare behavior with Erlang implementation
+   - [ ] Document differences and findings
 
-### After Fixing Message Receiving
+4. **Analyze results and determine next steps**:
+   - If JavaScript works: Adapt working approach to Gleam/Erlang
+   - If JavaScript also fails: Issue is likely protocol format, need deeper investigation
+   - Update DEVELOPMENT_PLAN.md based on findings
+
+### After JavaScript Investigation
 
 5. **Complete Phase 3 - Real TWS Integration Testing**:
+   - [ ] Resolve timeout issue (either through JavaScript approach or other means)
+   - [ ] Verify account discovery mechanism
+   - [ ] Test account summary retrieval (funds, balances)
+   - [ ] Test open orders retrieval
+   - [ ] Test positions retrieval
+   - [ ] Test market data subscription
+   - [ ] Test real-time bars subscription
+   - [ ] Test order placement (paper trading)
+   - [ ] Test order cancellation
+   - [ ] Test execution detail retrieval
+   - [ ] Document real-world testing results
    - [x] Test connection to real TWS instance
    - [x] Verify socket connection succeeds
    - [ ] Fix message receiving to handle continuous stream ← **CURRENT BLOCKER**
