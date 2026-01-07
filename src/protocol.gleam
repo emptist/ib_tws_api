@@ -3,6 +3,11 @@ import gleam/int
 import gleam/io
 import gleam/string
 
+/// Filter control characters from a string using JavaScript FFI
+/// Removes ASCII control characters (0x00-0x1f) except space (0x20)
+@external(javascript, "./connection_ffi.mjs", "filter_control_characters")
+pub fn filter_control_characters(str: String) -> String
+
 /// IB TWS API Message Types
 pub type MessageCode {
   /// Start API message (initial handshake)
@@ -112,21 +117,39 @@ fn int_to_four_bytes_big_endian(value: Int) -> BitArray {
 /// Parse server handshake response
 /// Expected format: "VERSION<timestamp> EST"
 /// Example: "20020260107 08:02:02 EST"
+/// Note: The response may have leading null bytes or control characters
+/// The IB TWS protocol includes a 4-byte length prefix before actual data
 pub fn parse_server_response(data: String) -> Result(#(Int, String), String) {
-  // Parse version number from start of string
-  case int.parse(data) {
+  // The IB TWS server response includes a 4-byte length prefix
+  // We need to skip this and extract the actual data
+  // Also remove any control characters (0x00-0x1f) except space (0x20)
+
+  // Use JavaScript FFI to filter out control characters
+  let filtered_data = filter_control_characters(data)
+
+  // Trim whitespace from the filtered data
+  let trimmed_data = string.trim(filtered_data)
+
+  io.println("[DEBUG] Cleaned server response: " <> trimmed_data)
+
+  // Parse version number from the start of the string
+  case int.parse(trimmed_data) {
     Ok(version) -> {
       // Extract timestamp (everything after the version number)
       let version_str = int.to_string(version)
       let timestamp = case
-        string.slice(data, string.length(version_str), string.length(data))
+        string.slice(
+          trimmed_data,
+          string.length(version_str),
+          string.length(trimmed_data),
+        )
       {
         "" -> "No timestamp"
         ts -> string.trim(ts)
       }
       Ok(#(version, timestamp))
     }
-    Error(_) -> Error("Invalid server response format")
+    Error(_) -> Error("Invalid server response format: " <> trimmed_data)
   }
 }
 
