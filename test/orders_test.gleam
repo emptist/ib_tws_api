@@ -23,7 +23,7 @@ pub fn main() {
   // Test 3: Try to place order with paper trading account (should succeed)
   io.println("3. Placing order with paper trading account (should succeed)")
   let paper_account = connection.PaperTrading
-  case orders.place_order(paper_account, 100, 12_345, buy_order) {
+  case orders.place_order(paper_account, 12_345, buy_order) {
     Ok(msg_bytes) -> {
       let msg_size = bit_array.byte_size(msg_bytes)
       io.println("✓ Order message created successfully")
@@ -35,10 +35,12 @@ pub fn main() {
   }
   io.println("")
 
-  // Test 4: Try to place order with live trading account (should fail)
-  io.println("4. Placing order with live trading account (should fail)")
-  let live_account = connection.LiveTrading
-  case orders.place_order(live_account, 101, 12_345, sell_order) {
+  // Test 4: Try to place order with live trading read-only account (should fail)
+  io.println(
+    "4. Placing order with live trading read-only account (should fail)",
+  )
+  let live_account = connection.LiveTradingReadOnly
+  case orders.place_order(live_account, 12_345, sell_order) {
     Ok(_msg_bytes) -> {
       io.println("✗ Order should have been rejected for live account!")
     }
@@ -62,7 +64,7 @@ pub fn main() {
   io.println("- Market orders: ✓ Working")
   io.println("- Limit orders: ✓ Working")
   io.println("- Paper trading safety: ✓ Working")
-  io.println("- Live trading protection: ✓ Working")
+  io.println("- Live trading read-only protection: ✓ Working")
   io.println("- Cancel orders: ✓ Working")
   io.println("")
   io.println("Note: To actually place orders:")

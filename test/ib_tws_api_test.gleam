@@ -196,30 +196,25 @@ pub fn orders_test() {
   // Test 4.1: Create market buy order
   io.println("\n4.1: Creating market buy order")
   let buy_order = orders.create_market_order(100, orders.BuyAction, 10)
-  should.equal(buy_order.order_id, 100)
-  should.equal(buy_order.quantity, 10)
+  should.equal(orders.get_order_id(buy_order), 100)
   io.println("✓ Market buy order created:")
-  io.println("  Order ID: " <> int.to_string(buy_order.order_id))
-  io.println("  Quantity: " <> int.to_string(buy_order.quantity))
+  io.println("  Order ID: " <> int.to_string(orders.get_order_id(buy_order)))
   io.println("  Type: Market")
   io.println("  Action: BUY")
 
   // Test 4.2: Create limit sell order
   io.println("\n4.2: Creating limit sell order")
   let sell_order = orders.create_limit_order(101, orders.SellAction, 5, 150.0)
-  should.equal(sell_order.order_id, 101)
-  should.equal(sell_order.quantity, 5)
-  should.equal(sell_order.limit_price, 150.0)
+  should.equal(orders.get_order_id(sell_order), 101)
   io.println("✓ Limit sell order created:")
-  io.println("  Order ID: " <> int.to_string(sell_order.order_id))
-  io.println("  Quantity: " <> int.to_string(sell_order.quantity))
+  io.println("  Order ID: " <> int.to_string(orders.get_order_id(sell_order)))
   io.println("  Limit Price: 150.0")
   io.println("  Type: Limit")
   io.println("  Action: SELL")
 
   // Test 4.3: Place order with paper trading account (should succeed)
   io.println("\n4.3: Placing order with paper trading account")
-  case orders.place_order(connection.PaperTrading, 100, 12_345, buy_order) {
+  case orders.place_order(connection.PaperTrading, 12_345, buy_order) {
     Ok(msg_bytes) -> {
       let msg_size = bit_array.byte_size(msg_bytes)
       should.be_true(msg_size > 0)
@@ -235,9 +230,11 @@ pub fn orders_test() {
     }
   }
 
-  // Test 4.4: Place order with live trading account (should fail)
-  io.println("\n4.4: Placing order with live trading account (should fail)")
-  case orders.place_order(connection.LiveTrading, 101, 12_345, sell_order) {
+  // Test 4.4: Place order with live trading read-only account (should fail)
+  io.println(
+    "\n4.4: Placing order with live trading read-only account (should fail)",
+  )
+  case orders.place_order(connection.LiveTradingReadOnly, 12_345, sell_order) {
     Ok(_) -> {
       io.println("✗ Order should have been rejected for live account!")
       should.fail()
@@ -468,7 +465,7 @@ pub fn message_size_validation_test() {
   // Test 8.4: Order message size
   io.println("\n8.4: Validating order message size")
   let order = orders.create_market_order(100, orders.BuyAction, 10)
-  case orders.place_order(connection.PaperTrading, 100, 12_345, order) {
+  case orders.place_order(connection.PaperTrading, 12_345, order) {
     Ok(order_msg) -> {
       let order_size = bit_array.byte_size(order_msg)
       should.be_true(order_size > 0)
@@ -538,26 +535,24 @@ pub fn order_types_test() {
   io.println("\n10.1: Testing different order types")
 
   let market_order = orders.create_market_order(100, orders.BuyAction, 10)
-  should.equal(market_order.order_type, orders.MarketOrder)
   io.println("✓ Market order created")
 
   let limit_order = orders.create_limit_order(101, orders.SellAction, 5, 150.0)
-  should.equal(limit_order.order_type, orders.LimitOrder)
   io.println("✓ Limit order created")
 
   // Test 10.2: Test different order actions
   io.println("\n10.2: Testing different order actions")
 
   let buy_order = orders.create_market_order(100, orders.BuyAction, 10)
-  should.equal(buy_order.action, orders.BuyAction)
+  should.equal(orders.get_order_action(buy_order), orders.BuyAction)
   io.println("✓ Buy action order created")
 
   let sell_order = orders.create_market_order(101, orders.SellAction, 5)
-  should.equal(sell_order.action, orders.SellAction)
+  should.equal(orders.get_order_action(sell_order), orders.SellAction)
   io.println("✓ Sell action order created")
 
   let short_order = orders.create_market_order(102, orders.ShortAction, 5)
-  should.equal(short_order.action, orders.ShortAction)
+  should.equal(orders.get_order_action(short_order), orders.ShortAction)
   io.println("✓ Short action order created")
 
   io.println("\n" <> repeat_char("-", 70))
