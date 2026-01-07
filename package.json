@@ -1,0 +1,11 @@
+{
+    "name": "ib_tws_api",
+    "version": "1.0.0",
+    "description": "Gleam wrapper for Interactive Brokers TWS API",
+    "main": "build/dev/javascript/ib_tws_api/ib_tws_api.mjs",
+    "type": "module",
+    "dependencies": {
+        "deasync": "^0.1.30"
+    },
+    "devDependencies": {}
+}
