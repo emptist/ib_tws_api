@@ -4,8 +4,10 @@
 packages = [
   { name = "gleam_stdlib", version = "0.67.1", build_tools = ["gleam"], requirements = [], otp_app = "gleam_stdlib", source = "hex", outer_checksum = "6CE3E4189A8B8EC2F73AB61A2FBDE49F159D6C9C61C49E3B3082E439F260D3D0" },
   { name = "gleeunit", version = "1.9.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleeunit", source = "hex", outer_checksum = "DA9553CE58B67924B3C631F96FE3370C49EB6D6DC6B384EC4862CC4AAA718F3C" },
+  { name = "node_socket_client", version = "1.0.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "node_socket_client", source = "hex", outer_checksum = "2C5B2A2CEB83C8DE9A5C58628E68335C78592C45CFC45A3E3FA13FE5F63A73B0" },
 ]
 
 [requirements]
 gleam_stdlib = { version = ">= 0.44.0 and < 2.0.0" }
 gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
+node_socket_client = { version = ">= 1.0.0 and < 2.0.0" }

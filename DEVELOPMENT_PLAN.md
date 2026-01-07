@@ -181,10 +181,10 @@ ib_tws_api/
 Current dependencies:
 - gleam_stdlib (standard library)
 - gleeunit (testing)
+- node_socket_client (TCP socket bindings for JavaScript target)
 
 Potential future additions (as needed):
-- gleam_erlang or gleam_javascript for FFI
-- Socket libraries for TCP communication
+- gleam_javascript for additional JavaScript interop
 - JSON parsing libraries (if needed)
 
 ## Notes
