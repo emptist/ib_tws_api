@@ -107,21 +107,22 @@ fn parse_message_id(data: BitArray) -> Result(Int, String) {
 }
 
 fn encode_connect_request(client_id: Int) -> BitArray {
-  let version_str = int.to_string(protocol_version)
-  let client_id_str = int.to_string(client_id)
-  
+  let server_version = 76
   <<
-    0:int-little-size(32),
-    version_str:utf8, 0:int-size(8),
-    client_id_str:utf8, 0:int-size(8),
+    server_version:int-little-size(32),
+    client_id:int-little-size(32),
   >>
 }
 
 fn decode_connect_ack(data: BitArray) -> Result(Message, String) {
   case data {
     <<_message_id:int-little-size(32), rest:bits>> -> {
-      use #(version_str, rest2) <- result.try(decode_string_null_terminated(rest))
-      use #(server_time, _remaining) <- result.try(decode_string_null_terminated(rest2))
+      use #(version_str, rest2) <- result.try(decode_string_null_terminated(
+        rest,
+      ))
+      use #(server_time, _remaining) <- result.try(
+        decode_string_null_terminated(rest2),
+      )
       case int.parse(version_str) {
         Ok(version) -> Ok(ConnectAck(version, server_time))
         Error(_) -> Error("Invalid version number")
