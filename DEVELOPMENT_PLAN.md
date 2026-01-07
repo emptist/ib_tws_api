@@ -106,7 +106,25 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 ### Phase 3: Async Message Handling 🔄 IN PROGRESS
 **Goal**: Implement proper asynchronous message processing
 
-#### Step 10: Implement Proper Async Message Handling with Event Callbacks ⏳
+#### Step 10: Test Handshake on Live Account (Port 7496) ✅ COMPLETED
+- [x] Run handshake test on live account (port 7496)
+- [x] Use `LiveTradingReadOnly` type for safety (trading blocked)
+- [x] Verify handshake message format: "API\0" + length + version
+- [x] Confirm server response received: "20020260107 08:50:31 EST"
+- [x] Parse version (200) and timestamp correctly
+- [x] **Discovery**: Data arrives asynchronously via event handlers
+- [x] Data appears AFTER test timeout completes (async timing issue)
+- [x] Handshake works correctly on both paper (7497) and live (7496) accounts
+- [x] Commit with message: "test: verify handshake on live account port 7496"
+
+**Success Criteria**:
+- ✓ Handshake works on live account (port 7496)
+- ✓ Server response received and parsed correctly
+- ✓ Version: 200, Timestamp: 20260107 08:50:31 EST
+- ✓ Trading blocked by LiveTradingReadOnly type (development safety)
+- ✓ Connection closes gracefully
+
+#### Step 11: Implement Proper Async Message Handling with Event Callbacks ⏳
 - [ ] **Current Issue**: `sleep()` doesn't block in JavaScript runtime
 - [ ] Data arrives asynchronously via event handlers
 - [ ] `receive()` polls stored data but timing issues occur
@@ -117,7 +135,7 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 - [ ] Update documentation on async patterns
 - [ ] Commit with message: "feat: implement async message handling"
 
-#### Step 11: Implement Message Parsing for Common Messages ⏳
+#### Step 12: Implement Message Parsing for Common Messages ⏳
 - [ ] Parse error messages (message code 4)
 - [ ] Parse tick price messages (message code 1)
 - [ ] Parse tick size messages (message code 2)
@@ -127,7 +145,7 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 - [ ] Update message handler to dispatch parsed messages
 - [ ] Commit with message: "feat: add message parsing for common message types"
 
-#### Step 12: Add Support for Market Data Requests ⏳
+#### Step 13: Add Support for Market Data Requests ⏳
 - [ ] Implement `req_mkt_data()` function
 - [ ] Create Contract type definition
 - [ ] Handle market data callbacks via message handler
@@ -140,7 +158,7 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 ### Phase 4: Order Management (Paper Trading Only)
 **Goal**: Implement order placement and management
 
-#### Step 13: Add Order Placement Functionality ⏳
+#### Step 14: Add Order Placement Functionality ⏳
 - [ ] Define Order type with all required fields
 - [ ] Implement `place_order()` function (paper trading only)
 - [ ] Handle order status callbacks
@@ -149,7 +167,7 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 - [ ] **WARNING**: Never test on live account (port 7496)
 - [ ] Commit with message: "feat: implement order management"
 
-#### Step 14: Add Position and Account Data Retrieval ⏳
+#### Step 15: Add Position and Account Data Retrieval ⏳
 - [ ] Implement account summary request
 - [ ] Parse account data messages
 - [ ] Implement portfolio positions request
@@ -291,18 +309,21 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 - ✅ Type-level trading safety with three account modes
 - ✅ `is_trading_allowed()` function for runtime safety checks
 - ✅ Separate test files for paper and live accounts
+- ✅ Handshake verified on both paper (7497) and live (7496) accounts
+- ✅ Server response format confirmed: "VERSION<timestamp> EST"
 
 ### Known Limitations:
 - ⚠️ Asynchronous data reception not fully handled
-- ⚠️ No message queue implementation
+- ⚠️ Event-driven message handling needs improvement
 - ⚠️ Limited message parsing (only server time)
 - ⚠️ Sleep doesn't block (JavaScript runtime)
 
 ### Next Immediate Steps:
-1. Implement proper event-driven message handling
-2. Add message queue for async message processing
-3. Implement message parsing for common IB TWS messages
-4. Add market data request functionality
+1. ✅ **COMPLETED**: Test handshake on live account (port 7496) - SUCCESS!
+2. Implement proper event-driven message handling to capture async data
+3. Add message queue for async message processing
+4. Implement message parsing for common IB TWS messages
+5. Add market data request functionality
 
 ## Notes
 
