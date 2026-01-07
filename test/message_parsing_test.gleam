@@ -185,6 +185,7 @@ fn debug_message(msg: messages.Message) -> String {
     messages.Position(_) -> "Position"
     messages.AccountSummary(_) -> "AccountSummary"
     messages.RealTimeBar(_) -> "RealTimeBar"
+    messages.HistoricalBar(_) -> "HistoricalBar"
     messages.Unknown(_) -> "Unknown"
   }
 }

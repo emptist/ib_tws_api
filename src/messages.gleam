@@ -81,6 +81,21 @@ pub type RealTimeBarData {
   )
 }
 
+/// Historical bar message
+pub type HistoricalBarData {
+  HistoricalBarData(
+    req_id: Int,
+    date: String,
+    open: Float,
+    high: Float,
+    low: Float,
+    close: Float,
+    volume: Int,
+    count: Int,
+    wap: Float,
+  )
+}
+
 /// Parsed IB TWS message
 pub type Message {
   ErrorMsg(ErrorData)
@@ -90,6 +105,7 @@ pub type Message {
   Position(PositionData)
   AccountSummary(AccountSummaryData)
   RealTimeBar(RealTimeBarData)
+  HistoricalBar(HistoricalBarData)
   Unknown(String)
 }
 
