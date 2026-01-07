@@ -1,7 +1,6 @@
 import connection
 import gleam/int
 import gleam/io
-import protocol
 
 /// Test automatic port switching and trading safety features
 pub fn main() {

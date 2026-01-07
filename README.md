@@ -84,6 +84,7 @@ This software is provided as-is for educational and development purposes. Tradin
 
 ## Resources
 
-- [IB TWS API Documentation](https://interactivebrokers.github.io/)
+- [IB TWS API Documentation](https://www.interactivebrokers.com/campus/ibkr-api-page/twsapi-doc/)
+- [IB TWS API GitHub](https://github.com/InteractiveBrokers/tws-api)
 - [Gleam Language](https://gleam.run/)
 - [Development Plan](DEVELOPMENT_PLAN.md)

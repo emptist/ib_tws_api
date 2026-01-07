@@ -89,11 +89,6 @@ pub fn config_with_account_type(
 @external(javascript, "./connection_ffi.mjs", "get_timestamp")
 pub fn get_timestamp() -> String
 
-/// Set timeout callback
-/// Uses Node.js setTimeout via FFI
-@external(javascript, "./connection_ffi.mjs", "set_timeout")
-fn set_timeout(milliseconds: Int, callback: fn() -> Nil) -> Nil
-
 /// Sleep for specified milliseconds
 /// Uses Node.js setTimeout via FFI
 @external(javascript, "./connection_ffi.mjs", "sleep")

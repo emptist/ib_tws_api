@@ -44,13 +44,14 @@ pub fn main() {
             "[Connection] Check the event log above for any received data",
           )
 
-          // Wait for server to respond
+          // Wait for server to respond (data arrives asynchronously)
+          // Server should respond with: VERSION<timestamp> EST
           io.println(
             "[TEST "
             <> connection.get_timestamp()
-            <> "] Waiting 2 seconds for server response...",
+            <> "] Waiting 3 seconds for server response...",
           )
-          connection.sleep(2000)
+          connection.sleep(3000)
 
           // Try to receive data
           io.println(
@@ -92,6 +93,10 @@ pub fn main() {
                         "[Connection] Client ID sent: "
                         <> int.to_string(conn_config.client_id),
                       )
+                      io.println(
+                        "[Connection] Check TWS GUI for client ID "
+                        <> int.to_string(conn_config.client_id),
+                      )
                     }
                     Error(err) -> {
                       let error_msg = case err {
@@ -125,22 +130,24 @@ pub fn main() {
               io.println("=== Test Results ===")
               io.println("✓ TCP connection established")
               io.println("✓ Handshake sent successfully")
-              io.println("✓ Server response should arrive asynchronously")
+              io.println("✗ Server did not respond")
               io.println("")
-              io.println("Note: Server response arrived in event log above")
+              io.println(
+                "Note: Check TWS GUI to see if connection was accepted",
+              )
+              io.println(
+                "Note: Server response may have arrived in event log above",
+              )
             }
           }
 
           // Keep connection open to allow TWS to register client ID
           io.println("")
           io.println("[Connection] Keeping connection open...")
-          io.println("[Connection] Check TWS GUI for client ID 1")
-          io.println("")
-          io.println("Press Ctrl+C to exit")
+          io.println("[Connection] Press Ctrl+C to exit")
           io.println("")
           // Keep connection open - do not close
           // This allows TWS to register the client ID
-          // Commented out: let _ = connection.close(conn)
         }
         Error(err) -> {
           let error_msg = case err {

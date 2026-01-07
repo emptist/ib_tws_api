@@ -1,4 +1,3 @@
-import connection
 import gleam/bit_array
 import gleam/float
 import gleam/int
@@ -107,7 +106,7 @@ pub fn process_message(data: String, handler: MessageHandler) -> Nil {
 
 /// Process incoming binary data and dispatch to appropriate handler
 /// This is a simplified parser - will be expanded as needed
-pub fn process_binary_message(data: BitArray, handler: MessageHandler) -> Nil {
+pub fn process_binary_message(data: BitArray, _handler: MessageHandler) -> Nil {
   let size = bit_array.byte_size(data)
 
   case size {
