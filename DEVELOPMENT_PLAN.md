@@ -28,11 +28,11 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 - [x] Create initial documentation
 
 #### Step 2: Minimal TCP Connection
-- [ ] Implement basic TCP socket connection
-- [ ] Connect to IB TWS API on port 7497
-- [ ] Receive raw data stream
-- [ ] Create test to verify connection and print raw data
-- [ ] Commit with message: "feat: implement minimal TCP connection to IB TWS API"
+- [x] Implement basic TCP socket connection
+- [x] Connect to IB TWS API on port 7497
+- [x] Receive raw data stream
+- [x] Create test to verify connection and print raw data
+- [x] Commit with message: "feat: implement minimal TCP connection to IB TWS API"
 
 **Success Criteria**: Can connect to TWS API and receive/print raw bytes
 
