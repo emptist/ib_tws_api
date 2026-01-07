@@ -23,9 +23,9 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 
 #### Step 1: Project Setup
 - [x] Create development plan document
-- [ ] Update gleam.toml to target JavaScript
-- [ ] Set up project structure with proper directories
-- [ ] Create initial documentation
+- [x] Update gleam.toml to target JavaScript
+- [x] Set up project structure with proper directories
+- [x] Create initial documentation
 
 #### Step 2: Minimal TCP Connection
 - [ ] Implement basic TCP socket connection

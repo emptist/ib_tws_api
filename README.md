@@ -12,36 +12,11 @@ This library provides a Gleam interface to interact with the IB TWS API for pape
 
 Currently implemented:
 - ✅ Project structure and planning
-- 🚧 Minimal TCP connection (in progress)
 
 ## Installation
 
 ```sh
 gleam add ib_tws_api
-```
-
-## Quick Start
-
-### Basic Connection (Paper Trading)
-
-```gleam
-import ib_tws_api
-import gleam/io
-
-pub fn main() {
-  // Connect to paper trading account on port 7497
-  let result = ib_tws_api.connect("127.0.0.1", 7497)
-  
-  case result {
-    Ok(connection) -> {
-      io.println("Connected to IB TWS API successfully!")
-      // Connection is now ready to use
-    }
-    Error(reason) -> {
-      io.println("Failed to connect: " <> reason)
-    }
-  }
-}
 ```
 
 ## Configuration
@@ -72,25 +47,6 @@ gleam test
 gleam build
 ```
 
-### Running Examples
-
-```sh
-gleam run --module examples/basic_connection
-```
-
-## Project Structure
-
-```
-src/
-├── ib_tws_api.gleam          # Main public API
-├── connection.gleam           # TCP connection handling
-├── protocol.gleam             # Message protocol implementation
-├── types.gleam                # Core type definitions
-├── market_data.gleam          # Market data operations
-├── orders.gleam               # Order management
-└── account.gleam              # Account information
-```
-
 ## Development Plan
 
 See [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the complete development roadmap and implementation strategy.
@@ -117,10 +73,6 @@ The library is being developed incrementally. Currently planned features:
 2. **Never automate buy/sell operations on live account (port 7496)**
 3. **Test thoroughly on paper account before using live trading**
 4. **The library is in early development - use at your own risk**
-
-## Contributing
-
-This is an early-stage project. Contributions are welcome once the basic functionality is established.
 
 ## License
 
