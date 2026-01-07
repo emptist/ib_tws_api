@@ -40,10 +40,10 @@ pub type AccountType {
   /// ⚠️ SAFETY: This type prevents trading operations during development
   /// Use this for testing connections to live account without risk of accidental trades
   LiveTradingReadOnly
-  /// Live trading account with full trading permissions (default port 7496)
+  /// Live trading account (default port 7496, NO TRADING)
   ///
-  /// ⚠️ PRODUCTION: Only use for production deployment
-  /// Never use during development - use LiveTradingReadOnly instead
+  /// ⚠️ SAFETY: This type prevents trading operations by default
+  /// Trading is disabled for safety - use PaperTrading for testing
   LiveTrading
 }
 
@@ -58,12 +58,13 @@ pub fn config(host: String, port: Int, client_id: Int) -> ConnectionConfig {
 }
 
 /// Check if trading is allowed for the given account type
-/// Returns True for PaperTrading and LiveTrading, False for LiveTradingReadOnly
+/// Returns True for PaperTrading only, False for all live accounts
+/// This prevents accidental trading on live accounts
 pub fn is_trading_allowed(account_type: AccountType) -> Bool {
   case account_type {
     PaperTrading -> True
     LiveTradingReadOnly -> False
-    LiveTrading -> True
+    LiveTrading -> False
   }
 }
 
@@ -79,7 +80,7 @@ pub fn get_port_for_account_type(account_type: AccountType) -> Int {
 /// Create connection config with account type (auto-detects port)
 /// - PaperTrading uses port 7497, trading allowed
 /// - LiveTradingReadOnly uses port 7496, NO TRADING (development mode)
-/// - LiveTrading uses port 7496, trading allowed (production only)
+/// - LiveTrading uses port 7496, NO TRADING (safety by default)
 pub fn config_with_account_type(
   host: String,
   account_type: AccountType,
