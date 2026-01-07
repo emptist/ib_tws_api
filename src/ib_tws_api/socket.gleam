@@ -77,6 +77,18 @@ pub fn send_message(
   Ok(Nil)
 }
 
+pub fn send_raw_bytes(
+  socket: Socket,
+  data: BitArray,
+) -> Result(Nil, ConnectionError) {
+  io.println(
+    "Sending raw bytes, length: " <> int.to_string(bit_array.byte_size(data)),
+  )
+  io.println("Data: " <> string.inspect(data))
+  let _ = tcp_send(socket, data)
+  Ok(Nil)
+}
+
 pub fn receive_message(
   socket: Socket,
   buffer: BitArray,

@@ -77,6 +77,10 @@ pub fn encode_message(msg: Message) -> BitArray {
 }
 
 pub fn decode_message(data: BitArray) -> Result(Message, String) {
+  decode_message_payload(data)
+}
+
+fn decode_message_payload(data: BitArray) -> Result(Message, String) {
   case parse_message_id(data) {
     Ok(message_id) -> {
       case message_id {
@@ -107,11 +111,49 @@ fn parse_message_id(data: BitArray) -> Result(Int, String) {
 }
 
 fn encode_connect_request(client_id: Int) -> BitArray {
-  let server_version = 76
-  <<
-    server_version:int-little-size(32),
-    client_id:int-little-size(32),
+  // IB API ConnectRequest format:
+  // This is a two-step process:
+  // 1. Greeting: "API\0" + 4-byte length + version string
+  // 2. StartAPI: 4-byte length + message type + version + client ID + empty string
+
+  // For now, we just return the greeting message
+  // The StartAPI message will be sent after receiving server version
+  encode_greeting_message()
+}
+
+pub fn encode_greeting_message() -> BitArray {
+  // Format: "API\0" + 4-byte length (little-endian) + version string
+  let prefix = "API"
+  let version = "v142..177"
+  // min and max server versions from IBServerVersion
+
+  let version_bytes = bit_array.byte_size(bit_array.from_string(version))
+
+  <<prefix:utf8, 0:size(8), version_bytes:int-little-size(32), version:utf8>>
+}
+
+pub fn encode_start_api(client_id: Int) -> BitArray {
+  // Format: 4-byte length (little-endian) + message type + version + client ID + empty string
+  // All fields are null-terminated strings
+  let message_type = "71"
+  // IBRequestType.startAPI in IBKit
+  let version = "2"
+  let client_id_str = int.to_string(client_id)
+  let empty = ""
+
+  let payload = <<
+    message_type:utf8,
+    0:size(8),
+    version:utf8,
+    0:size(8),
+    client_id_str:utf8,
+    0:size(8),
+    empty:utf8,
+    0:size(8),
   >>
+
+  let payload_size = bit_array.byte_size(payload)
+  <<payload_size:int-little-size(32), payload:bits>>
 }
 
 fn decode_connect_ack(data: BitArray) -> Result(Message, String) {
