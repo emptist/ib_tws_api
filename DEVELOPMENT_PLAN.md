@@ -41,17 +41,23 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 
 **Success Criteria**: Can connect to TWS API and receive/print raw bytes
 
-#### Step 2.5: Automatic Port Switching ✅
-- [x] Add `AccountType` type (PaperTrading, LiveTrading)
+#### Step 2.5: Automatic Port Switching with Trading Safety ✅
+- [x] Add `AccountType` type with three variants for different safety levels:
+  - `PaperTrading`: port 7497, trading allowed (development)
+  - `LiveTradingReadOnly`: port 7496, NO TRADING (development safety)
+  - `LiveTrading`: port 7496, trading allowed (production only)
+- [x] Implement `is_trading_allowed()` function to check trading permissions
+- [x] Implement `get_port_for_account_type()` helper function
 - [x] Implement `config_with_account_type()` for automatic port detection
-  - PaperTrading automatically uses port 7497
-  - LiveTrading automatically uses port 7496
 - [x] Keep `config()` function for explicit port specification
-- [x] Create test to verify port switching works correctly
-- [x] Update all test files to use automatic port selection
-- [x] Commit with message: "feat: add automatic port switching based on account type"
+- [x] Create comprehensive test to verify port switching and safety features
+- [x] Update all test files to use appropriate account types
+- [x] Commit with message: "feat: add type-level trading safety with three account types"
 
-**Success Criteria**: Can automatically select correct port based on account type, no hardcoded ports needed
+**Success Criteria**:
+- ✓ Automatically select correct port based on account type
+- ✓ Type-level safety prevents accidental trading on live account during development
+- ✓ Clear distinction between development and production modes
 
 ### Phase 2: Protocol Handshake ✅ COMPLETED
 **Goal**: Implement the initial handshake protocol
@@ -282,6 +288,8 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 - ✅ Type-safe message definitions
 - ✅ Comprehensive technical documentation
 - ✅ Automatic port switching based on account type
+- ✅ Type-level trading safety with three account modes
+- ✅ `is_trading_allowed()` function for runtime safety checks
 - ✅ Separate test files for paper and live accounts
 
 ### Known Limitations:
