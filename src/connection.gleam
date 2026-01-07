@@ -26,11 +26,19 @@ pub type ConnectionError {
   Timeout
 }
 
-/// Account type for automatic port detection
+/// Account type for automatic port detection and trading safety
 pub type AccountType {
-  /// Paper trading account (default port 7497)
+  /// Paper trading account (default port 7497, trading allowed)
   PaperTrading
-  /// Live trading account (default port 7496)
+  /// Live trading account in read-only mode (default port 7496, NO TRADING)
+  ///
+  /// ⚠️ SAFETY: This type prevents trading operations during development
+  /// Use this for testing connections to live account without risk of accidental trades
+  LiveTradingReadOnly
+  /// Live trading account with full trading permissions (default port 7496)
+  ///
+  /// ⚠️ PRODUCTION: Only use for production deployment
+  /// Never use during development - use LiveTradingReadOnly instead
   LiveTrading
 }
 
@@ -44,17 +52,35 @@ pub fn config(host: String, port: Int, client_id: Int) -> ConnectionConfig {
   ConnectionConfig(host: host, port: port, client_id: client_id)
 }
 
+/// Check if trading is allowed for the given account type
+/// Returns True for PaperTrading and LiveTrading, False for LiveTradingReadOnly
+pub fn is_trading_allowed(account_type: AccountType) -> Bool {
+  case account_type {
+    PaperTrading -> True
+    LiveTradingReadOnly -> False
+    LiveTrading -> True
+  }
+}
+
+/// Get the port for the given account type
+pub fn get_port_for_account_type(account_type: AccountType) -> Int {
+  case account_type {
+    PaperTrading -> 7497
+    LiveTradingReadOnly -> 7496
+    LiveTrading -> 7496
+  }
+}
+
 /// Create connection config with account type (auto-detects port)
-/// PaperTrading uses port 7497, LiveTrading uses port 7496
+/// - PaperTrading uses port 7497, trading allowed
+/// - LiveTradingReadOnly uses port 7496, NO TRADING (development mode)
+/// - LiveTrading uses port 7496, trading allowed (production only)
 pub fn config_with_account_type(
   host: String,
   account_type: AccountType,
   client_id: Int,
 ) -> ConnectionConfig {
-  let port = case account_type {
-    PaperTrading -> 7497
-    LiveTrading -> 7496
-  }
+  let port = get_port_for_account_type(account_type)
   ConnectionConfig(host: host, port: port, client_id: client_id)
 }
 

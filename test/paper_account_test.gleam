@@ -4,11 +4,16 @@ import gleam/io
 import protocol
 
 /// Test handshake on paper trading account using automatic port selection
-/// Uses connection.config_with_account_type() for automatic port detection
+/// Uses connection.PaperTrading which allows trading
 pub fn main() {
   io.println("=== Paper Trading Account Handshake Test ===")
   io.println("Using automatic port selection (PaperTrading -> port 7497)")
   io.println("Client ID: 1")
+  io.println("")
+
+  // Check trading permissions
+  let trading_allowed = connection.is_trading_allowed(connection.PaperTrading)
+  io.println("Trading Permissions: " <> bool_to_yes_no(trading_allowed))
   io.println("")
 
   // Use automatic port selection
@@ -45,7 +50,7 @@ pub fn main() {
             Error(_) -> {
               io.println("⚠ No data received within timeout")
               io.println(
-                "This is normal - the data may have arrived via event handler",
+                "This is normal - data may have arrived via event handler",
               )
             }
             Ok(data) -> {
@@ -75,6 +80,7 @@ pub fn main() {
                       io.println("✓ Handshake complete!")
                       io.println("✓ Check TWS GUI to confirm client ID appears")
                       io.println("")
+                      io.println("✓ Trading is ALLOWED on this account type")
                       io.println("Keeping connection alive for 5 seconds...")
                       connection.sleep(5000)
                     }
@@ -125,5 +131,12 @@ pub fn main() {
       }
       io.println("✗ Failed to connect: " <> err_msg)
     }
+  }
+}
+
+fn bool_to_yes_no(b: Bool) -> String {
+  case b {
+    True -> "YES ✓"
+    False -> "NO ✗"
   }
 }

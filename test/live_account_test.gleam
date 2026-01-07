@@ -6,30 +6,43 @@ import protocol
 /// ⚠️ WARNING: This test connects to a LIVE TRADING ACCOUNT ⚠️
 /// 
 /// IMPORTANT SAFETY NOTES:
-/// - This uses port 7496 (live trading)
-/// - DO NOT test buy/sell operations on live account
+/// - This uses LiveTradingReadOnly account type (port 7496)
+/// - Trading operations are BLOCKED at type level
 /// - Use only for connection testing and data retrieval
 /// - Paper trading (port 7497) should be used for development
 /// 
-/// This test demonstrates automatic port selection using LiveTrading account type
+/// When ready for production, switch to connection.LiveTrading
 pub fn main() {
   io.println("⚠️ ⚠️ ⚠️ WARNING ⚠️ ⚠️ ⚠️")
   io.println("This is a LIVE ACCOUNT connection test")
-  io.println("⚠️ DO NOT test buy/sell operations! ⚠️")
   io.println("")
   io.println("=== Live Trading Account Handshake Test ===")
-  io.println("Using automatic port selection (LiveTrading -> port 7496)")
+  io.println(
+    "Using automatic port selection (LiveTradingReadOnly -> port 7496)",
+  )
   io.println("Client ID: 1")
   io.println("")
 
-  // Use automatic port selection for live account
+  // Use LiveTradingReadOnly for development safety
   let config =
-    connection.config_with_account_type("127.0.0.1", connection.LiveTrading, 1)
+    connection.config_with_account_type(
+      "127.0.0.1",
+      connection.LiveTradingReadOnly,
+      1,
+    )
+
+  // Check trading permissions
+  let trading_allowed =
+    connection.is_trading_allowed(connection.LiveTradingReadOnly)
+  io.println("Trading Permissions: " <> bool_to_yes_no(trading_allowed))
+  io.println("⚠️ Trading operations are BLOCKED for safety ⚠️")
+  io.println("")
 
   io.println("Configuration:")
   io.println("  Host: " <> config.host)
   io.println("  Port: " <> int.to_string(config.port) <> " (LIVE TRADING)")
   io.println("  Client ID: " <> int.to_string(config.client_id))
+  io.println("  Account Type: LiveTradingReadOnly (Development Mode)")
   io.println("")
 
   // Connect to TWS
@@ -87,8 +100,8 @@ pub fn main() {
                       io.println("✓ Handshake complete!")
                       io.println("✓ Check TWS GUI to confirm client ID appears")
                       io.println("")
+                      io.println("✓ Trading is BLOCKED (LiveTradingReadOnly)")
                       io.println("Keeping connection alive for 5 seconds...")
-                      io.println("⚠️ NO trading operations will be performed ⚠️")
                       connection.sleep(5000)
                     }
                     Error(err) -> {
@@ -142,4 +155,17 @@ pub fn main() {
 
   io.println("")
   io.println("⚠️ Test completed - NO trading operations performed ⚠️")
+  io.println("⚠️ Trading was blocked by LiveTradingReadOnly type ⚠️")
+  io.println("")
+  io.println("When ready for production:")
+  io.println(
+    "  Change connection.LiveTradingReadOnly to connection.LiveTrading",
+  )
+}
+
+fn bool_to_yes_no(b: Bool) -> String {
+  case b {
+    True -> "YES ✓"
+    False -> "NO ✗"
+  }
 }
