@@ -16,6 +16,7 @@ Currently implemented:
 - ✅ IB TWS V100+ protocol handshake
 - ✅ Async message handling with callbacks
 - ✅ Market data subscription
+- ✅ Real-time bars with specific bar sizes (5 secs to 1 month)
 - ✅ Order placement (paper trading only)
 - ✅ Position and account data retrieval
 - ✅ Message parsing for common message types
@@ -172,7 +173,58 @@ let cancel_msg = orders.cancel_order(101)
 connection.send_bytes(conn, cancel_msg)
 ```
 
-### 5. Request Account Data
+### 5. Request Real-Time Bars
+
+```gleam
+import real_time_bars
+
+// Request real-time bars for NVDA with 1-minute bars
+let ticker_id = 100
+let contract_id = 12345
+let exchange = "SMART"
+let symbol = "NVDA"
+let sec_type = "STK"
+let currency = "USD"
+let bar_size = real_time_bars.OneMinute
+let what_to_show = real_time_bars.Trades
+let use_rth = True
+
+let bars_msg = real_time_bars.request_real_time_bars(
+  ticker_id,
+  contract_id,
+  exchange,
+  symbol,
+  sec_type,
+  currency,
+  bar_size,
+  what_to_show,
+  use_rth,
+)
+
+connection.send_bytes(conn, bars_msg)
+
+// Cancel when done
+let cancel_msg = real_time_bars.cancel_real_time_bars(ticker_id)
+connection.send_bytes(conn, cancel_msg)
+```
+
+**Available Bar Sizes:**
+- 5 secs, 10 secs, 15 secs, 30 secs
+- 1 min, 2 mins, 3 mins, 5 mins, 10 mins
+- 15 mins, 20 mins, 30 mins
+- 1 hour, 2 hours, 3 hours, 4 hours, 8 hours
+- 1 day, 1 week, 1 month
+
+**Available Data Types:**
+- Trades: Trade prices and volumes
+- Bid: Bid prices
+- Ask: Ask prices
+- Midpoint: Midpoint of bid/ask
+- Bid/Ask: Both bid and ask prices
+- Historical Volatility: Historical volatility
+- Implied Volatility: Implied volatility
+
+### 6. Request Account Data
 
 ```gleam
 import account_data
@@ -216,6 +268,14 @@ case messages.parse_message(data) {
   }
   Ok(messages.AccountSummary(acc)) -> {
     io.println(acc.tag <> ": " <> acc.value)
+  }
+  Ok(messages.RealTimeBar(bar)) -> {
+    io.println("Real-Time Bar - ID: " <> int.to_string(bar.req_id))
+    io.println("  Open: " <> float.to_string(bar.open))
+    io.println("  High: " <> float.to_string(bar.high))
+    io.println("  Low: " <> float.to_string(bar.low))
+    io.println("  Close: " <> float.to_string(bar.close))
+    io.println("  Volume: " <> int.to_string(bar.volume))
   }
   _other -> {
     io.println("Unknown message")
@@ -294,16 +354,29 @@ case messages.parse_message(data) {
 - `common_account_tags()` - Get common account summary tags
 - `account_summary_tag_to_string(tag)` - Convert tag to string
 
+### Real-Time Bars Module
+
+**Types:**
+- `BarSize` - Bar size (FiveSeconds to OneMonth)
+- `WhatToShow` - Data type (Trades, Bid, Ask, Midpoint, etc.)
+- `RealTimeBar` - Real-time bar data (req_id, time, open, high, low, close, volume, wap, count)
+
+**Functions:**
+- `request_real_time_bars(ticker_id, contract_id, exchange, symbol, sec_type, currency, bar_size, what_to_show, use_rth)` - Request real-time bars
+- `cancel_real_time_bars(ticker_id)` - Cancel real-time bars subscription
+- `debug_real_time_bars_request(...)` - Debug print request details
+
 ### Messages Module
 
 **Types:**
-- `Message` - Parsed message variant (ErrorMsg, TickPrice, TickSize, OrderStatus, Position, AccountSummary, Unknown)
+- `Message` - Parsed message variant (ErrorMsg, TickPrice, TickSize, OrderStatus, Position, AccountSummary, RealTimeBar, Unknown)
 - `ErrorData` - Error message data
 - `TickPriceData` - Tick price data
 - `TickSizeData` - Tick size data
 - `OrderStatusData` - Order status data
 - `PositionData` - Position data
 - `AccountSummaryData` - Account summary data
+- `RealTimeBarData` - Real-time bar data
 
 **Functions:**
 - `parse_message(data)` - Parse message from received data
@@ -410,10 +483,10 @@ The library is being developed incrementally. Currently implemented features:
 - [x] Async message handling with callbacks
 - [x] Message parsing for common message types
 - [x] Market data subscription
+- [x] Real-time bars with specific bar sizes
 - [x] Order management (paper trading only)
 - [x] Account information (positions and summaries)
 - [ ] Historical data
-- [ ] Real-time bars
 - [ ] Advanced order types
 - [ ] Portfolio management
 - [ ] Error handling and resilience improvements
