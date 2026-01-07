@@ -1,6 +1,6 @@
 name = "ib_tws_api"
 version = "1.0.0"
-target = "erlang"
+target = "javascript"
 license = "Apache-2.0"
 
 
