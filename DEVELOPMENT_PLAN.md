@@ -41,6 +41,18 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 
 **Success Criteria**: Can connect to TWS API and receive/print raw bytes
 
+#### Step 2.5: Automatic Port Switching ✅
+- [x] Add `AccountType` type (PaperTrading, LiveTrading)
+- [x] Implement `config_with_account_type()` for automatic port detection
+  - PaperTrading automatically uses port 7497
+  - LiveTrading automatically uses port 7496
+- [x] Keep `config()` function for explicit port specification
+- [x] Create test to verify port switching works correctly
+- [x] Update all test files to use automatic port selection
+- [x] Commit with message: "feat: add automatic port switching based on account type"
+
+**Success Criteria**: Can automatically select correct port based on account type, no hardcoded ports needed
+
 ### Phase 2: Protocol Handshake ✅ COMPLETED
 **Goal**: Implement the initial handshake protocol
 
@@ -207,10 +219,12 @@ ib_tws_api/
 │   ├── orders.gleam               # Order management (future)
 │   └── account.gleam              # Account information (future)
 ├── test/
-│   ├── ib_tws_api_test.gleam      # Paper trading test (port 7497)
-│   ├── live_account_test.gleam    # Live account test (port 7496) - NO BUY/SELL
+│   ├── ib_tws_api_test.gleam      # Original paper trading test
+│   ├── paper_account_test.gleam     # Paper trading test (automatic port 7497)
+│   ├── live_account_test.gleam      # Live account test (automatic port 7496) - NO BUY/SELL
+│   ├── auto_port_test.gleam         # Test automatic port switching
 │   ├── improved_handshake_test.gleam  # Improved async test
-│   └── diagnostic_test.gleam      # Diagnostic/testing utilities
+│   └── diagnostic_test.gleam        # Diagnostic/testing utilities
 ├── examples/
 │   └── (to be created as needed)
 ├── DEVELOPMENT_PLAN.md            # This file
@@ -267,6 +281,8 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 - ✅ Basic message handler framework
 - ✅ Type-safe message definitions
 - ✅ Comprehensive technical documentation
+- ✅ Automatic port switching based on account type
+- ✅ Separate test files for paper and live accounts
 
 ### Known Limitations:
 - ⚠️ Asynchronous data reception not fully handled
@@ -282,8 +298,10 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 
 ## Notes
 
-- Always use port 7497 (paper trading) for development
-- Port 7496 (live trading) should only be used for final deployment
+- Use `config_with_account_type()` for automatic port selection (recommended)
+- Use `config()` only when custom port is needed
+- PaperTrading automatically uses port 7497 (for development)
+- LiveTrading automatically uses port 7496 (never test buy/sell)
 - The IB TWS API documentation will be the primary reference
 - Protocol version will be tracked in connection module
 - All technical issues are documented in TECHNICAL_NOTES.md
