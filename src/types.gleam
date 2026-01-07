@@ -12,9 +12,24 @@ pub type ConnectionError {
   InvalidPort
   SocketError(String)
   Timeout
+  ProtocolError(String)
 }
 
 /// Connection state
 pub type Connection {
   Connection(config: ConnectionConfig)
+}
+
+/// Message types from IB TWS
+pub type MessageType {
+  ServerTime
+  Error
+  MarketData
+  OrderStatus
+  // More message types will be added as needed
+}
+
+/// Protocol message
+pub type Message {
+  Message(message_type: MessageType, payload: String)
 }

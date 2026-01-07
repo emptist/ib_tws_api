@@ -68,5 +68,6 @@ fn error_to_string(err: types.ConnectionError) -> String {
     types.InvalidPort -> "Invalid port"
     types.SocketError(msg) -> "Socket error: " <> msg
     types.Timeout -> "Connection timeout"
+    types.ProtocolError(msg) -> "Protocol error: " <> msg
   }
 }
