@@ -1,121 +1,119 @@
 import { Socket } from 'net';
 
-export function connect(host, port) {
-  return new Promise((resolve, reject) => {
-    console.log(`[Socket FFI] Connecting to ${host}:${port}`);
+export function connect(host, port, callback) {
+  console.log(`[Node.js] Connecting to ${host}:${port}`);
 
-    const socket = new Socket();
+  const socket = new Socket();
 
-    socket.setTimeout(10000, () => {
-      socket.destroy();
-      reject(new Error('Connection timeout'));
-    });
+  socket.setTimeout(10000, () => {
+    console.log('[Node.js] Connection timeout triggered');
+    socket.destroy();
+    callback({ success: false, error: new Error('Connection timeout') });
+  });
 
-    socket.connect(port, host, () => {
-      console.log(`[Socket FFI] Connected successfully`);
-      resolve(socket);
-    });
+  socket.connect(port, host, () => {
+    console.log(`[Node.js] Connected successfully to ${host}:${port}`);
+    callback({ success: true, value: socket });
+  });
 
-    socket.on('error', (err) => {
-      console.log(`[Socket FFI] Connection error: ${err.message}`);
-      reject(err);
-    });
+  socket.on('error', (err) => {
+    console.log(`[Node.js] Error event: ${err.message}`);
+    socket.destroy();
+    callback({ success: false, error: err });
+  });
+
+  socket.on('close', (hadError) => {
+    console.log(`[Node.js] Close event, hadError=${hadError}`);
   });
 }
 
-export function send(socket, data) {
-  return new Promise((resolve, reject) => {
-    if (!socket || socket.destroyed) {
-      reject(new Error('Socket not connected'));
-      return;
+export function send(socket, data, callback) {
+  if (!socket || socket.destroyed) {
+    callback({ success: false, error: new Error('Socket not connected') });
+    return;
+  }
+
+  const buffer = Buffer.from(data);
+  console.log(`[Node.js] Sending ${buffer.length} bytes`);
+
+  socket.write(buffer, (err) => {
+    if (err) {
+      callback({ success: false, error: err });
+    } else {
+      callback({ success: true, value: null });
     }
-
-    const buffer = Buffer.from(data);
-    console.log(`[Socket FFI] Sending ${buffer.length} bytes`);
-
-    socket.write(buffer, (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(null);
-      }
-    });
   });
 }
 
-export function recv(socket, length, timeout) {
-  return new Promise((resolve, reject) => {
-    if (!socket || socket.destroyed) {
-      reject(new Error('Socket not connected'));
-      return;
-    }
+export function recv(socket, length, timeout, callback) {
+  if (!socket || socket.destroyed) {
+    callback({ success: false, error: new Error('Socket not connected') });
+    return;
+  }
 
-    console.log(`[Socket FFI] Receiving up to ${length} bytes with timeout ${timeout}ms`);
+  console.log(`[Node.js] Receiving up to ${length} bytes with timeout ${timeout}ms`);
 
-    socket.setTimeout(timeout, () => {
+  socket.setTimeout(timeout, () => {
+    socket.removeAllListeners('data');
+    callback({ success: false, error: new Error('Receive timeout') });
+  });
+
+  const chunks = [];
+  let totalLength = 0;
+  let resolved = false;
+
+  const cleanup = () => {
+    if (!resolved) {
+      socket.setTimeout(0);
       socket.removeAllListeners('data');
-      reject(new Error('Receive timeout'));
-    });
+    }
+  };
 
-    const chunks = [];
-    let totalLength = 0;
-    let resolved = false;
+  socket.on('data', (chunk) => {
+    console.log(`[Node.js] Received ${chunk.length} bytes`);
+    chunks.push(chunk);
+    totalLength += chunk.length;
 
-    const cleanup = () => {
-      if (!resolved) {
-        socket.setTimeout(0);
-        socket.removeAllListeners('data');
-      }
-    };
-
-    socket.on('data', (chunk) => {
-      console.log(`[Socket FFI] Received ${chunk.length} bytes`);
-      chunks.push(chunk);
-      totalLength += chunk.length;
-
-      if (totalLength >= length) {
-        resolved = true;
-        cleanup();
-        const buffer = Buffer.concat(chunks);
-        resolve(new Uint8Array(buffer));
-      }
-    });
-
-    socket.on('error', (err) => {
+    if (totalLength >= length) {
+      resolved = true;
       cleanup();
-      reject(err);
-    });
+      const buffer = Buffer.concat(chunks);
+      callback({ success: true, value: new Uint8Array(buffer) });
+    }
+  });
 
-    socket.on('close', () => {
-      cleanup();
-      if (!resolved && chunks.length > 0) {
-        resolved = true;
-        const buffer = Buffer.concat(chunks);
-        resolve(new Uint8Array(buffer));
-      } else if (!resolved) {
-        reject(new Error('Socket closed'));
-      }
-    });
+  socket.on('error', (err) => {
+    cleanup();
+    callback({ success: false, error: err });
+  });
+
+  socket.on('close', () => {
+    cleanup();
+    if (!resolved && chunks.length > 0) {
+      resolved = true;
+      const buffer = Buffer.concat(chunks);
+      callback({ success: true, value: new Uint8Array(buffer) });
+    } else if (!resolved) {
+      callback({ success: false, error: new Error('Socket closed') });
+    }
   });
 }
 
-export function close(socket) {
-  return new Promise((resolve, reject) => {
-    if (!socket || socket.destroyed) {
-      resolve(null);
-      return;
-    }
+export function close(socket, callback) {
+  if (!socket || socket.destroyed) {
+    callback({ success: true, value: null });
+    return;
+  }
 
-    console.log('[Socket FFI] Closing socket');
+  console.log('[Node.js] Closing socket');
 
-    socket.end(() => {
-      socket.destroy();
-      resolve(null);
-    });
+  socket.end(() => {
+    socket.destroy();
+    callback({ success: true, value: null });
+  });
 
-    socket.on('error', (err) => {
-      socket.destroy();
-      reject(err);
-    });
+  socket.on('error', (err) => {
+    socket.destroy();
+    callback({ success: false, error: err });
   });
 }
