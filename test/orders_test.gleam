@@ -39,7 +39,7 @@ pub fn main() {
   io.println("4. Placing order with live trading account (should fail)")
   let live_account = connection.LiveTrading
   case orders.place_order(live_account, 101, 12_345, sell_order) {
-    Ok(msg_bytes) -> {
+    Ok(_msg_bytes) -> {
       io.println("✗ Order should have been rejected for live account!")
     }
     Error(err) -> {

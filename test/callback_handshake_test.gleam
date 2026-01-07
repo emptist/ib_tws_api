@@ -16,9 +16,7 @@ pub fn main() {
     connection.config_with_account_type("127.0.0.1", account_type, 1)
 
   let port_name = case account_type {
-    connection.PaperTrading -> "PAPER TRADING (7497)"
     connection.LiveTradingReadOnly -> "LIVE TRADING READ-ONLY (7496)"
-    connection.LiveTrading -> "LIVE TRADING (7496)"
   }
 
   io.println(

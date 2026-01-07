@@ -2,7 +2,7 @@ import connection
 import gleam/bool
 import gleam/int
 import gleam/io
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import protocol
 
 // Simple test that demonstrates callback-based message handling
@@ -19,8 +19,6 @@ pub fn main() {
 
   let port_name = case account_type {
     connection.PaperTrading -> "PAPER TRADING (7497)"
-    connection.LiveTradingReadOnly -> "LIVE TRADING READ-ONLY (7496)"
-    connection.LiveTrading -> "LIVE TRADING (7496)"
   }
 
   io.println(
@@ -43,7 +41,7 @@ pub fn main() {
   io.println("[TEST " <> connection.get_timestamp() <> "] Starting test")
 
   // Flag to track if we received data
-  let data_received = io.println("Initializing...")
+  let _data_received = io.println("Initializing...")
 
   // Create a callback that will be invoked when data is received
   let data_callback = fn(data: String) {
