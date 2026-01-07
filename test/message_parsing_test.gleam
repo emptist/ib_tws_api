@@ -2,6 +2,7 @@ import gleam/bit_array
 import gleam/float
 import gleam/int
 import gleam/io
+import message_handler
 import messages
 
 pub fn main() {
@@ -108,6 +109,67 @@ pub fn main() {
       io.println("✗ Failed to convert bit array to string")
     }
   }
+  io.println("")
+
+  // Test 5: Real-time bar message (code 52)
+  io.println("Test 5: Parsing real-time bar message (code 52)")
+  // Create a real-time bar message with sample data
+  // Format: msg_id(2) + req_id(4) + time(4) + open(8) + high(8) + low(8) + close(8) + volume(4) + wap(8) + count(4)
+  let real_time_bar_data = <<
+    52:16,
+    100:32,
+    1_704_067_200:32,
+    450.0:float,
+    455.0:float,
+    448.0:float,
+    452.0:float,
+    10_000:32,
+    451.5:float,
+    500:32,
+  >>
+
+  io.println("  Testing real-time bar parsing with message handler...")
+  io.println(
+    "  Message size: "
+    <> int.to_string(bit_array.byte_size(real_time_bar_data))
+    <> " bytes",
+  )
+
+  // Test with a custom handler that captures the data
+  let handler =
+    message_handler.MessageHandler(
+      on_server_time: fn(_, _) { Nil },
+      on_error: fn(_, _, _) { Nil },
+      on_tick_price: fn(_, _, _, _) { Nil },
+      on_tick_size: fn(_, _, _, _) { Nil },
+      on_order_status: fn(_, _, _, _, _, _, _) { Nil },
+      on_position: fn(_, _, _, _) { Nil },
+      on_real_time_bar: fn(
+        req_id,
+        time,
+        open,
+        high,
+        low,
+        close,
+        volume,
+        wap,
+        count,
+      ) {
+        io.println("✓ Successfully parsed real-time bar message")
+        io.println("  Request ID: " <> int.to_string(req_id))
+        io.println("  Time: " <> int.to_string(time))
+        io.println("  Open: " <> float.to_string(open))
+        io.println("  High: " <> float.to_string(high))
+        io.println("  Low: " <> float.to_string(low))
+        io.println("  Close: " <> float.to_string(close))
+        io.println("  Volume: " <> int.to_string(volume))
+        io.println("  WAP: " <> float.to_string(wap))
+        io.println("  Count: " <> int.to_string(count))
+      },
+    )
+
+  // Process the binary message
+  message_handler.process_binary_message(real_time_bar_data, handler)
   io.println("")
 
   io.println("=== Test Complete ===")
