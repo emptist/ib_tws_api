@@ -26,14 +26,36 @@ pub type ConnectionError {
   Timeout
 }
 
-/// Create a connection configuration
-pub fn config(host: String, port: Int, client_id: Int) -> ConnectionConfig {
-  ConnectionConfig(host: host, port: port, client_id: client_id)
+/// Account type for automatic port detection
+pub type AccountType {
+  /// Paper trading account (default port 7497)
+  PaperTrading
+  /// Live trading account (default port 7496)
+  LiveTrading
 }
 
 /// Connection configuration
 pub type ConnectionConfig {
   ConnectionConfig(host: String, port: Int, client_id: Int)
+}
+
+/// Create connection config with explicit port
+pub fn config(host: String, port: Int, client_id: Int) -> ConnectionConfig {
+  ConnectionConfig(host: host, port: port, client_id: client_id)
+}
+
+/// Create connection config with account type (auto-detects port)
+/// PaperTrading uses port 7497, LiveTrading uses port 7496
+pub fn config_with_account_type(
+  host: String,
+  account_type: AccountType,
+  client_id: Int,
+) -> ConnectionConfig {
+  let port = case account_type {
+    PaperTrading -> 7497
+    LiveTrading -> 7496
+  }
+  ConnectionConfig(host: host, port: port, client_id: client_id)
 }
 
 /// Get current timestamp as string for debugging
