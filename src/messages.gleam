@@ -66,6 +66,21 @@ pub type AccountSummaryData {
   )
 }
 
+/// Real-time bar message
+pub type RealTimeBarData {
+  RealTimeBarData(
+    req_id: Int,
+    time: Int,
+    open: Float,
+    high: Float,
+    low: Float,
+    close: Float,
+    volume: Int,
+    wap: Float,
+    count: Int,
+  )
+}
+
 /// Parsed IB TWS message
 pub type Message {
   ErrorMsg(ErrorData)
@@ -74,6 +89,7 @@ pub type Message {
   OrderStatus(OrderStatusData)
   Position(PositionData)
   AccountSummary(AccountSummaryData)
+  RealTimeBar(RealTimeBarData)
   Unknown(String)
 }
 
