@@ -36,6 +36,21 @@ pub type ConnectionConfig {
   ConnectionConfig(host: String, port: Int, client_id: Int)
 }
 
+/// Get current timestamp as string for debugging
+/// Uses Node.js Date.now() via FFI
+@external(javascript, "./connection_ffi.mjs", "get_timestamp")
+pub fn get_timestamp() -> String
+
+/// Set timeout callback
+/// Uses Node.js setTimeout via FFI
+@external(javascript, "./connection_ffi.mjs", "set_timeout")
+fn set_timeout(milliseconds: Int, callback: fn() -> Nil) -> Nil
+
+/// Sleep for specified milliseconds
+/// Uses Node.js setTimeout via FFI
+@external(javascript, "./connection_ffi.mjs", "sleep")
+pub fn sleep(milliseconds: Int) -> Nil
+
 /// Connect to IB TWS API using TCP socket
 /// Returns a connection handle on success, or an error on failure
 pub fn connect(config: ConnectionConfig) -> Result(Connection, ConnectionError) {
@@ -53,22 +68,25 @@ pub fn connect(config: ConnectionConfig) -> Result(Connection, ConnectionError) 
       config.port,
       initial_state,
       fn(state, _socket, event) {
+        let timestamp = get_timestamp()
         case event {
           ReadyEvent -> {
-            io.println("[Connection] Socket ready")
+            io.println("[Connection " <> timestamp <> "] Socket ready")
             ConnectionState(..state, connected: True)
           }
           DataEvent(data) -> {
-            io.println("[Connection] Received data: " <> data)
+            io.println(
+              "[Connection " <> timestamp <> "] Received data: " <> data,
+            )
             let new_data = [data, ..state.received_data]
             ConnectionState(..state, received_data: new_data)
           }
           ErrorEvent(error) -> {
-            io.println("[Connection] Error: " <> error)
+            io.println("[Connection " <> timestamp <> "] Error: " <> error)
             ConnectionState(..state, error: Some(error))
           }
           CloseEvent(_) -> {
-            io.println("[Connection] Connection closed")
+            io.println("[Connection " <> timestamp <> "] Connection closed.")
             ConnectionState(..state, connected: False)
           }
           _other_event -> {
@@ -88,6 +106,26 @@ pub fn send(conn: Connection, data: String) -> Result(Nil, ConnectionError) {
   case success {
     True -> Ok(Nil)
     False -> Error(SocketError("Failed to write to socket"))
+  }
+}
+
+/// Send raw binary data through the connection
+/// Takes a BitArray and sends it as raw bytes without string conversion
+@external(javascript, "./connection_ffi.mjs", "send_bytes")
+fn send_bytes_external(
+  socket: node_socket_client.SocketClient,
+  data: BitArray,
+) -> Bool
+
+/// Send raw binary data through the connection
+pub fn send_bytes(
+  conn: Connection,
+  data: BitArray,
+) -> Result(Nil, ConnectionError) {
+  let success = send_bytes_external(conn.socket, data)
+  case success {
+    True -> Ok(Nil)
+    False -> Error(SocketError("Failed to write bytes to socket"))
   }
 }
 
