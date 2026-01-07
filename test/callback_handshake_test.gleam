@@ -13,7 +13,7 @@ pub fn main() {
   // Use auto port switcher with LiveTradingReadOnly for safety
   let account_type = connection.LiveTradingReadOnly
   let conn_config =
-    connection.config_with_account_type("127.0.0.1", account_type, 1)
+    connection.config_with_account_type("127.0.0.1", 7496, account_type, 1)
 
   let port_name = case account_type {
     connection.LiveTradingReadOnly -> "LIVE TRADING READ-ONLY (7496)"

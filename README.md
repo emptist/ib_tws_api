@@ -42,7 +42,7 @@ The IB TWS API requires the TWS or IB Gateway application to be running with API
 - **Port**: 7496
 - **Use for**: Real trading operations
 - **Warning**: Real money involved
-- **Trading**: ❌ Disabled by default (safety feature)
+- **Trading**: ✅ Allowed with LiveTrading, ❌ Disabled with LiveTradingReadOnly
 
 ## Quick Start
 
@@ -71,13 +71,14 @@ case connection.config_auto_detect("127.0.0.1", connection.generate_client_id(),
 }
 ```
 
-**Or manually specify the account type (auto-detects port):**
+**Or specify the port and account type explicitly:**
 
 ```gleam
-// Configure connection with account type (auto-detects port)
+// Configure connection with explicit port and account type
 let config = connection.config_with_account_type(
   "127.0.0.1",
-  connection.PaperTrading,  // or LiveTradingReadOnly for live account
+  7497,  // Port: 7497 for paper trading, 7496 for live trading
+  connection.PaperTrading,  // Account type: PaperTrading, LiveTrading, or LiveTradingReadOnly
   connection.generate_client_id(),
 )
 
@@ -87,10 +88,12 @@ let result = connection.connect_with_callback(config, Some(fn(data) {
 }))
 ```
 
-**Or specify the port explicitly:**
+**Or use the backward-compatible config (infers account type from port):**
 
 ```gleam
-// Configure connection with explicit port
+// Configure connection with explicit port (account type inferred)
+// Port 7497 → PaperTrading (trading allowed)
+// Port 7496 → LiveTrading (trading allowed)
 let config = connection.config("127.0.0.1", 7497, connection.generate_client_id())
 
 // Connect with a callback to handle incoming messages
@@ -157,7 +160,7 @@ let order = orders.create_market_order(
   quantity: 10,
 )
 
-// Place the order (will fail if not paper trading)
+// Place the order (will fail if LiveTradingReadOnly)
 case orders.place_order(connection.PaperTrading, 101, 12345, order) {
   Ok(msg_bytes) -> {
     connection.send_bytes(conn, msg_bytes)
@@ -295,11 +298,11 @@ case messages.parse_message(data) {
 - `DataCallback` - Callback type for handling received data
 
 **Functions:**
-- `config(host, port, client_id)` - Create connection config with explicit port
-- `config_with_account_type(host, account_type, client_id)` - Auto-detect port based on account type
+- `config(host, port, client_id)` - Create connection config with explicit port (account type inferred from port)
+- `config_with_account_type(host, port, account_type, client_id)` - Create connection config with explicit port and account type
 - `config_auto_detect(host, client_id, timeout)` - Automatically detect which IB TWS port (7496 or 7497) is available
 - `detect_ib_tws_port(host, timeout)` - Detect which IB TWS port is available (returns 0 if none, otherwise port number)
-- `is_trading_allowed(account_type)` - Check if trading is allowed
+- `is_trading_allowed(account_type)` - Check if trading is allowed (True for PaperTrading and LiveTrading, False for LiveTradingReadOnly)
 - `connect(config)` - Connect to IB TWS
 - `connect_with_callback(config, callback)` - Connect with data callback
 - `send(conn, data)` - Send string data
@@ -385,25 +388,46 @@ case messages.parse_message(data) {
 
 ### Type-Level Trading Safety
 
-The library uses type-level safety to prevent accidental trading on live accounts:
+The library uses type-level safety to control trading operations:
 
 ```gleam
-// This will succeed (paper trading allows trading)
+// These will succeed (both allow trading)
 orders.place_order(connection.PaperTrading, 101, 12345, order)
-
-// This will fail (live trading disabled by default)
 orders.place_order(connection.LiveTrading, 101, 12345, order)
+
+// This will fail (read-only mode)
+orders.place_order(connection.LiveTradingReadOnly, 101, 12345, order)
 // Error: "Trading is not allowed with this account type. Please use paper trading account for safety."
 ```
+
+**Important**: Trading is allowed for both `PaperTrading` and `LiveTrading` account types. Use `LiveTradingReadOnly` to disable trading for safety.
 
 ### Automatic Port Switching
 
 ```gleam
-// Automatically uses port 7497 for paper trading
-let config = connection.config_with_account_type("127.0.0.1", connection.PaperTrading, client_id)
+// Paper trading on port 7497 with trading enabled
+let config = connection.config_with_account_type(
+  "127.0.0.1",
+  7497,
+  connection.PaperTrading,
+  client_id,
+)
 
-// Automatically uses port 7496 for live trading
-let config = connection.config_with_account_type("127.0.0.1", connection.LiveTradingReadOnly, client_id)
+// Live trading on port 7496 with trading enabled
+let config = connection.config_with_account_type(
+  "127.0.0.1",
+  7496,
+  connection.LiveTrading,
+  client_id,
+)
+
+// Live trading on port 7496 with trading disabled (read-only)
+let config = connection.config_with_account_type(
+  "127.0.0.1",
+  7496,
+  connection.LiveTradingReadOnly,
+  client_id,
+)
 ```
 
 ### Automatic Port Detection
@@ -500,11 +524,11 @@ See [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the complete development ro
 ⚠️ **Important Safety Guidelines**:
 
 1. **Always use paper trading (port 7497) for development and testing**
-2. **Live trading is disabled by default - use PaperTrading account type for safety**
-3. **The library prevents trading on live accounts at the type level**
+2. **Use LiveTradingReadOnly account type to disable trading for safety**
+3. **The library allows trading for both PaperTrading and LiveTrading account types**
 4. **Test thoroughly on paper account before using live trading**
 5. **The library is in early development - use at your own risk**
-6. **Never automate buy/sell operations on live account (port 7496)**
+6. **Be cautious when automating buy/sell operations on live account (port 7496)**
 
 ## License
 

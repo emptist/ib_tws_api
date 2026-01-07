@@ -11,8 +11,7 @@ pub fn main() {
   io.println("Client ID: 1")
   io.println("")
 
-  let config =
-    connection.ConnectionConfig(host: "127.0.0.1", port: 7497, client_id: 1)
+  let config = connection.config("127.0.0.1", 7497, 1)
 
   // Connect to TWS with custom event handlers
   case connection.connect(config) {

@@ -10,7 +10,12 @@ pub fn main() {
   // Test 1: Paper trading account (should use port 7497, trading allowed)
   io.println("Test 1: Paper Trading Account")
   let paper_config =
-    connection.config_with_account_type("127.0.0.1", connection.PaperTrading, 1)
+    connection.config_with_account_type(
+      "127.0.0.1",
+      7497,
+      connection.PaperTrading,
+      1,
+    )
   io.println("  Account Type: PaperTrading")
   io.println("  Expected Port: 7497")
   io.println("  Actual Port: " <> int.to_string(paper_config.port))
@@ -30,6 +35,7 @@ pub fn main() {
   let live_readonly_config =
     connection.config_with_account_type(
       "127.0.0.1",
+      7496,
       connection.LiveTradingReadOnly,
       1,
     )
@@ -55,7 +61,12 @@ pub fn main() {
   // Test 3: Live trading account with full permissions (should use port 7496, trading allowed)
   io.println("Test 3: Live Trading Account (Production Mode)")
   let live_config =
-    connection.config_with_account_type("127.0.0.1", connection.LiveTrading, 1)
+    connection.config_with_account_type(
+      "127.0.0.1",
+      7496,
+      connection.LiveTrading,
+      1,
+    )
   io.println("  Account Type: LiveTrading")
   io.println("  Expected Port: 7496")
   io.println("  Actual Port: " <> int.to_string(live_config.port))

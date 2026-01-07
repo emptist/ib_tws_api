@@ -19,7 +19,12 @@ pub fn main() {
 
   // Use automatic port selection
   let config =
-    connection.config_with_account_type("127.0.0.1", connection.PaperTrading, 1)
+    connection.config_with_account_type(
+      "127.0.0.1",
+      7497,
+      connection.PaperTrading,
+      1,
+    )
 
   io.println("Configuration:")
   io.println("  Host: " <> config.host)

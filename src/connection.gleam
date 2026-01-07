@@ -31,63 +31,90 @@ pub type ConnectionError {
   Timeout
 }
 
-/// Account type for automatic port detection and trading safety
+/// Account type for trading safety
 pub type AccountType {
-  /// Paper trading account (default port 7497, trading allowed)
+  /// Paper trading account - trading allowed
+  ///
+  /// Use this for development and testing with simulated trading
+  /// Port can be configured independently (commonly 7496 or 7497)
   PaperTrading
-  /// Live trading account in read-only mode (default port 7496, NO TRADING)
+  /// Live trading account in read-only mode - NO TRADING
   ///
   /// ⚠️ SAFETY: This type prevents trading operations during development
   /// Use this for testing connections to live account without risk of accidental trades
   LiveTradingReadOnly
-  /// Live trading account (default port 7496, NO TRADING)
+  /// Live trading account - trading allowed
   ///
-  /// ⚠️ SAFETY: This type prevents trading operations by default
-  /// Trading is disabled for safety - use PaperTrading for testing
+  /// ⚠️ WARNING: This uses real money - use with extreme caution
+  /// Port can be configured independently (commonly 7496)
   LiveTrading
 }
 
 /// Connection configuration
 pub type ConnectionConfig {
-  ConnectionConfig(host: String, port: Int, client_id: Int)
+  ConnectionConfig(
+    host: String,
+    port: Int,
+    client_id: Int,
+    account_type: AccountType,
+  )
 }
 
-/// Create connection config with explicit port
+/// Create connection config with explicit port (backward compatible)
+/// Automatically infers account type from port:
+/// - Port 7497 → PaperTrading (trading allowed)
+/// - Port 7496 → LiveTrading (trading allowed)
+/// - Other ports → PaperTrading (safe default)
 pub fn config(host: String, port: Int, client_id: Int) -> ConnectionConfig {
-  ConnectionConfig(host: host, port: port, client_id: client_id)
+  let account_type = case port {
+    7497 -> PaperTrading
+    7496 -> LiveTrading
+    _ -> PaperTrading
+  }
+  ConnectionConfig(
+    host: host,
+    port: port,
+    client_id: client_id,
+    account_type: account_type,
+  )
+}
+
+/// Create connection config with explicit port and account type
+/// Use this when you need to specify the account type explicitly
+/// For example, if you're running paper trading on port 7496
+pub fn config_with_account_type(
+  host: String,
+  port: Int,
+  account_type: AccountType,
+  client_id: Int,
+) -> ConnectionConfig {
+  ConnectionConfig(
+    host: host,
+    port: port,
+    client_id: client_id,
+    account_type: account_type,
+  )
 }
 
 /// Check if trading is allowed for the given account type
-/// Returns True for PaperTrading only, False for all live accounts
-/// This prevents accidental trading on live accounts
+/// Returns True for PaperTrading and LiveTrading, False for LiveTradingReadOnly
+/// This prevents accidental trading on read-only live accounts
 pub fn is_trading_allowed(account_type: AccountType) -> Bool {
   case account_type {
     PaperTrading -> True
     LiveTradingReadOnly -> False
-    LiveTrading -> False
+    LiveTrading -> True
   }
 }
 
-/// Get the port for the given account type
-pub fn get_port_for_account_type(account_type: AccountType) -> Int {
+/// Get the default port for the given account type
+/// Note: Port can be overridden when creating config
+pub fn get_default_port(account_type: AccountType) -> Int {
   case account_type {
     PaperTrading -> 7497
     LiveTradingReadOnly -> 7496
     LiveTrading -> 7496
   }
-}
-
-/// Create connection config with account type (auto-detects port)
-/// - PaperTrading uses port 7497, trading allowed
-/// - LiveTradingReadOnly uses port 7496, NO TRADING (development mode)
-/// - LiveTrading uses port 7496, NO TRADING (safety by default)
-pub fn config_with_account_type(
-  host: String,
-  account_type: AccountType,
-  client_id: Int,
-) -> ConnectionConfig {
-  let port = get_port_for_account_type(account_type)
-  ConnectionConfig(host: host, port: port, client_id: client_id)
 }
 
 /// Get current timestamp as string for debugging
@@ -115,6 +142,8 @@ pub fn detect_ib_tws_port(host: String, timeout: Int) -> Int
 /// Create connection config with automatic port detection
 /// Automatically detects which IB TWS port (7496 or 7497) is available
 /// Returns Error if neither port is available, Ok(config) if a port is detected
+/// Note: Auto-detection assumes port 7496 is live trading and 7497 is paper trading
+/// For different configurations, use config() or config_with_account_type()
 pub fn config_auto_detect(
   host: String,
   client_id: Int,
@@ -123,7 +152,27 @@ pub fn config_auto_detect(
   let detected_port = detect_ib_tws_port(host, timeout)
   case detected_port {
     0 -> Error("No IB TWS server detected on ports 7496 or 7497")
-    port -> Ok(ConnectionConfig(host: host, port: port, client_id: client_id))
+    7496 ->
+      Ok(ConnectionConfig(
+        host: host,
+        port: 7496,
+        client_id: client_id,
+        account_type: LiveTrading,
+      ))
+    7497 ->
+      Ok(ConnectionConfig(
+        host: host,
+        port: 7497,
+        client_id: client_id,
+        account_type: PaperTrading,
+      ))
+    port ->
+      Ok(ConnectionConfig(
+        host: host,
+        port: port,
+        client_id: client_id,
+        account_type: PaperTrading,
+      ))
   }
 }
 

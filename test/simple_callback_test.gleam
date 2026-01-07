@@ -15,7 +15,12 @@ pub fn main() {
   let account_type = connection.PaperTrading
   let client_id = connection.generate_client_id()
   let conn_config =
-    connection.config_with_account_type("127.0.0.1", account_type, client_id)
+    connection.config_with_account_type(
+      "127.0.0.1",
+      7497,
+      account_type,
+      client_id,
+    )
 
   let port_name = case account_type {
     connection.PaperTrading -> "PAPER TRADING (7497)"

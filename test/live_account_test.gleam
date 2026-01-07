@@ -27,6 +27,7 @@ pub fn main() {
   let config =
     connection.config_with_account_type(
       "127.0.0.1",
+      7496,
       connection.LiveTradingReadOnly,
       1,
     )

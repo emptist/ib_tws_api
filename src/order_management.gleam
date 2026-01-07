@@ -1,5 +1,3 @@
-import gleam/bit_array
-import gleam/int
 import gleam/string
 
 /// Order status types from IB TWS

@@ -1,4 +1,3 @@
-import gleam/bit_array
 import gleam/string
 
 /// Historical data bar sizes

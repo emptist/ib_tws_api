@@ -34,7 +34,12 @@ pub fn connection_config_test() {
 
   // Test 1.2: Create config with account type (Paper Trading)
   let paper_config =
-    connection.config_with_account_type("127.0.0.1", connection.PaperTrading, 1)
+    connection.config_with_account_type(
+      "127.0.0.1",
+      7497,
+      connection.PaperTrading,
+      1,
+    )
   should.equal(paper_config.port, 7497)
   should.equal(paper_config.client_id, 1)
   io.println("✓ Paper trading config uses port 7497")
@@ -43,6 +48,7 @@ pub fn connection_config_test() {
   let live_config =
     connection.config_with_account_type(
       "127.0.0.1",
+      7496,
       connection.LiveTradingReadOnly,
       1,
     )

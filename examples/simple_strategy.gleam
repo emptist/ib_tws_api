@@ -33,6 +33,7 @@ pub fn main() {
   let config =
     connection.config_with_account_type(
       "127.0.0.1",
+      7497,
       connection.PaperTrading,
       client_id,
     )

@@ -10,7 +10,8 @@ pub fn main() {
   io.println("\n=== Async Handshake Test with Event Callbacks ===")
 
   let account_type = connection.LiveTradingReadOnly
-  let config = connection.config_with_account_type("127.0.0.1", account_type, 1)
+  let config =
+    connection.config_with_account_type("127.0.0.1", 7496, account_type, 1)
 
   let port_name = case account_type {
     connection.LiveTradingReadOnly -> "LIVE TRADING READ-ONLY (7496)"
