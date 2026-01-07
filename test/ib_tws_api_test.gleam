@@ -1,4 +1,5 @@
 import connection
+import gleam/bool
 import gleam/int
 import gleam/io
 import protocol
@@ -6,14 +7,37 @@ import protocol
 // Test IB TWS API connection with handshake
 pub fn main() {
   io.println("\n=== IB TWS API Connection Test ===")
+
+  // Use auto port switcher with LiveTradingReadOnly for safety
+  // This will automatically use port 7496 (live account) but block trading
+  let account_type = connection.LiveTradingReadOnly
+  let conn_config =
+    connection.config_with_account_type("127.0.0.1", account_type, 1)
+
+  let port_name = case account_type {
+    connection.PaperTrading -> "PAPER TRADING (7497)"
+    connection.LiveTradingReadOnly -> "LIVE TRADING READ-ONLY (7496)"
+    connection.LiveTrading -> "LIVE TRADING (7496)"
+  }
+
   io.println(
-    "Testing TCP connection to IB TWS API on port 7497 (paper trading)",
+    "Testing TCP connection to IB TWS API on port "
+    <> int.to_string(conn_config.port)
+    <> " ("
+    <> port_name
+    <> ")",
   )
   io.println("")
+  io.println(
+    "Trading Allowed: "
+    <> bool.to_string(connection.is_trading_allowed(account_type)),
+  )
+  case connection.is_trading_allowed(account_type) {
+    False -> io.println("⚠️ SAFETY: Trading operations are BLOCKED ⚠️")
+    True -> Nil
+  }
+  io.println("")
   io.println("[TEST " <> connection.get_timestamp() <> "] Starting test")
-
-  // Create connection configuration
-  let conn_config = connection.config("127.0.0.1", 7497, 1)
 
   // Connect to IB TWS API
   case connection.connect(conn_config) {
@@ -183,8 +207,16 @@ pub fn main() {
       io.println(
         "2. Enable API connections in TWS (Configure > API > Settings)",
       )
-      io.println("3. Check that port 7497 is not blocked")
+      io.println(
+        "3. Check that port "
+        <> int.to_string(conn_config.port)
+        <> " is not blocked",
+      )
       io.println("4. Verify 'Allow connections from localhost' is checked")
+      io.println(
+        "5. Auto port switcher selected port: "
+        <> int.to_string(conn_config.port),
+      )
     }
   }
 }
