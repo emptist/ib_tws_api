@@ -3,16 +3,12 @@
 
 %% Connect to a TCP server
 %% Returns {ok, Socket} or {error, Reason}
-connect(Host, Port) when is_list(Host), is_integer(Port) ->
-    case inet:parse_address(Host) of
-        {ok, IpAddress} ->
-            Options = [binary, {packet, raw}, {active, false}, {reuseaddr, true}],
-            case gen_tcp:connect(IpAddress, Port, Options, 10000) of
-                {ok, Socket} -> {ok, Socket};
-                {error, Reason} -> {error, Reason}
-            end;
-        {error, Reason} ->
-            {error, Reason}
+connect(Host, Port) when is_binary(Host), is_integer(Port) ->
+    HostStr = binary_to_list(Host),
+    Options = [{packet, raw}, {active, false}, {reuseaddr, true}],
+    case gen_tcp:connect(HostStr, Port, Options, 10000) of
+        {ok, Socket} -> {ok, Socket};
+        {error, Reason} -> {error, Reason}
     end.
 
 %% Send data to socket

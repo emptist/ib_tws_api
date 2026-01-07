@@ -1,5 +1,6 @@
 name = "ib_tws_api"
 version = "0.1.0"
+target = "erlang"
 
 description = "A Gleam wrapper for Interactive Brokers TWS/Gateway API"
 licences = ["Apache-2.0"]
