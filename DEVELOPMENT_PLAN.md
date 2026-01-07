@@ -54,10 +54,27 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 - [x] Update all test files to use appropriate account types
 - [x] Commit with message: "feat: add type-level trading safety with three account types"
 
+#### Step 2.6: Automatic Port Detection ✅
+- [x] **Discovery**: Users switch between paper trading (7497) and live trading (7496) throughout the day
+- [x] Implement `detect_ib_tws_port()` function using nc (netcat) command
+- [x] Implement `config_auto_detect()` convenience function for easy usage
+- [x] Use execSync from Node.js child_process for synchronous port checking
+- [x] Return Int type (0 = not found, other = port number) to avoid FFI marshaling issues
+- [x] Check paper trading port (7497) first, then live trading port (7496)
+- [x] Add comprehensive logging for debugging port detection process
+- [x] Create test/auto_port_detection_test.gleam to verify functionality
+- [x] Test successfully detects port 7496 (live trading) and connects to it
+- [x] Update README with automatic port detection usage examples
+- [x] Update TECHNICAL_NOTES.md with implementation details
+- [x] Commit with message: "feat: add automatic port detection for IB TWS API"
+
 **Success Criteria**:
 - ✓ Automatically select correct port based on account type
 - ✓ Type-level safety prevents accidental trading on live account during development
 - ✓ Clear distinction between development and production modes
+- ✓ Automatically detect which IB TWS port (7496 or 7497) is available
+- ✓ Handle case when neither port is available with clear error message
+- ✓ Useful for switching between paper trading (day) and live trading (night)
 
 ### Phase 2: Protocol Handshake ✅ COMPLETED
 **Goal**: Implement the initial handshake protocol
@@ -306,31 +323,49 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 - ✅ Type-safe message definitions
 - ✅ Comprehensive technical documentation
 - ✅ Automatic port switching based on account type
+- ✅ Automatic port detection (7496 or 7497) using nc command
 - ✅ Type-level trading safety with three account modes
 - ✅ `is_trading_allowed()` function for runtime safety checks
 - ✅ Separate test files for paper and live accounts
 - ✅ Handshake verified on both paper (7497) and live (7496) accounts
 - ✅ Server response format confirmed: "VERSION<timestamp> EST"
+- ✅ Message parsing for error, tick price, tick size, order status, position, and account summary messages
+- ✅ Market data subscription functionality
+- ✅ Order placement (paper trading only) with safety checks
+- ✅ Position and account data retrieval
+- ✅ 25 account summary tags implemented
+- ✅ 4 comprehensive examples created
 
 ### Known Limitations:
-- ⚠️ Asynchronous data reception not fully handled
-- ⚠️ Event-driven message handling needs improvement
-- ⚠️ Limited message parsing (only server time)
-- ⚠️ Sleep doesn't block (JavaScript runtime)
+- ⚠️ Asynchronous data reception uses callbacks (working but could be improved)
+- ⚠️ Limited message types implemented (error, tick price, tick size, order status, position, account summary)
+- ⚠️ No message queue for buffering (callbacks handle messages directly)
+- ⚠️ Sleep doesn't block (JavaScript runtime) - use event-driven patterns
 
 ### Next Immediate Steps:
 1. ✅ **COMPLETED**: Test handshake on live account (port 7496) - SUCCESS!
-2. Implement proper event-driven message handling to capture async data
-3. Add message queue for async message processing
-4. Implement message parsing for common IB TWS messages
-5. Add market data request functionality
+2. ✅ **COMPLETED**: Implement proper event-driven message handling with callbacks
+3. ✅ **COMPLETED**: Implement message parsing for common IB TWS messages
+4. ✅ **COMPLETED**: Add market data request functionality
+5. ✅ **COMPLETED**: Add order placement (paper trading only)
+6. ✅ **COMPLETED**: Add position and account data retrieval
+7. ✅ **COMPLETED**: Document all implemented features
+8. ✅ **COMPLETED**: Create comprehensive examples
+9. ✅ **COMPLETED**: Add automatic port detection
+10. Add historical data requests
+11. Add real-time bar subscriptions
+12. Add more order types and advanced order features
+13. Improve error handling and resilience
 
 ## Notes
 
-- Use `config_with_account_type()` for automatic port selection (recommended)
+- Use `config_auto_detect()` for automatic port detection (recommended for switching between paper/live)
+- Use `config_with_account_type()` for automatic port selection based on account type
 - Use `config()` only when custom port is needed
 - PaperTrading automatically uses port 7497 (for development)
 - LiveTrading automatically uses port 7496 (never test buy/sell)
+- Automatic port detection checks paper trading port (7497) first, then live trading port (7496)
+- Port detection uses nc (netcat) command with 1-second timeout by default
 - The IB TWS API documentation will be the primary reference
 - Protocol version will be tracked in connection module
 - All technical issues are documented in TECHNICAL_NOTES.md

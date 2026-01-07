@@ -12,6 +12,7 @@ This library provides a Gleam interface to interact with the IB TWS API for pape
 
 Currently implemented:
 - ✅ TCP connection with automatic port switching
+- ✅ Automatic port detection (7496 or 7497)
 - ✅ IB TWS V100+ protocol handshake
 - ✅ Async message handling with callbacks
 - ✅ Market data subscription
@@ -44,19 +45,52 @@ The IB TWS API requires the TWS or IB Gateway application to be running with API
 
 ## Quick Start
 
-### 1. Connect to IB TWS
+### 1. Connect to IB TWS (Automatic Port Detection)
+
+The library can automatically detect which IB TWS port is available (7496 or 7497):
 
 ```gleam
 import connection
 import protocol
 import gleam/option
 
+// Automatically detect which port is available
+case connection.config_auto_detect("127.0.0.1", connection.generate_client_id(), 1) {
+  Ok(config) -> {
+    io.println("✓ Connected to port: " <> int.to_string(config.port))
+    
+    // Connect with a callback to handle incoming messages
+    let result = connection.connect_with_callback(config, Some(fn(data) {
+      io.println("Received: " <> data)
+    }))
+  }
+  Error(err) -> {
+    io.println("❌ " <> err)
+  }
+}
+```
+
+**Or manually specify the account type (auto-detects port):**
+
+```gleam
 // Configure connection with account type (auto-detects port)
 let config = connection.config_with_account_type(
   "127.0.0.1",
   connection.PaperTrading,  // or LiveTradingReadOnly for live account
   connection.generate_client_id(),
 )
+
+// Connect with a callback to handle incoming messages
+let result = connection.connect_with_callback(config, Some(fn(data) {
+  io.println("Received: " <> data)
+}))
+```
+
+**Or specify the port explicitly:**
+
+```gleam
+// Configure connection with explicit port
+let config = connection.config("127.0.0.1", 7497, connection.generate_client_id())
 
 // Connect with a callback to handle incoming messages
 let result = connection.connect_with_callback(config, Some(fn(data) {
@@ -203,6 +237,8 @@ case messages.parse_message(data) {
 **Functions:**
 - `config(host, port, client_id)` - Create connection config with explicit port
 - `config_with_account_type(host, account_type, client_id)` - Auto-detect port based on account type
+- `config_auto_detect(host, client_id, timeout)` - Automatically detect which IB TWS port (7496 or 7497) is available
+- `detect_ib_tws_port(host, timeout)` - Detect which IB TWS port is available (returns 0 if none, otherwise port number)
 - `is_trading_allowed(account_type)` - Check if trading is allowed
 - `connect(config)` - Connect to IB TWS
 - `connect_with_callback(config, callback)` - Connect with data callback
@@ -296,6 +332,26 @@ let config = connection.config_with_account_type("127.0.0.1", connection.PaperTr
 // Automatically uses port 7496 for live trading
 let config = connection.config_with_account_type("127.0.0.1", connection.LiveTradingReadOnly, client_id)
 ```
+
+### Automatic Port Detection
+
+The library can automatically detect which IB TWS port is available (7496 or 7497):
+
+```gleam
+// Automatically detect which port is available
+case connection.config_auto_detect("127.0.0.1", client_id, 1) {
+  Ok(config) -> {
+    io.println("✓ Connected to port: " <> int.to_string(config.port))
+    // Proceed with connection
+  }
+  Error(err) -> {
+    io.println("❌ " <> err)
+    // Handle error - neither port 7496 nor 7497 is available
+  }
+}
+```
+
+This is useful when switching between paper trading (port 7497) during the day and live trading (port 7496) at night.
 
 ### Unique Client IDs
 

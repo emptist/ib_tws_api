@@ -105,6 +105,28 @@ pub fn generate_client_id() -> Int
 @external(javascript, "./connection_ffi.mjs", "sleep")
 pub fn sleep(milliseconds: Int) -> Nil
 
+/// Detect which IB TWS port is available (7496 or 7497)
+/// Tests both ports and returns the first one that is available
+/// Returns Ok(port) if a port is available, Error if neither port is available
+/// Uses Node.js net module via FFI
+@external(javascript, "./connection_ffi.mjs", "detect_ib_tws_port")
+pub fn detect_ib_tws_port(host: String, timeout: Int) -> Int
+
+/// Create connection config with automatic port detection
+/// Automatically detects which IB TWS port (7496 or 7497) is available
+/// Returns Error if neither port is available, Ok(config) if a port is detected
+pub fn config_auto_detect(
+  host: String,
+  client_id: Int,
+  timeout: Int,
+) -> Result(ConnectionConfig, String) {
+  let detected_port = detect_ib_tws_port(host, timeout)
+  case detected_port {
+    0 -> Error("No IB TWS server detected on ports 7496 or 7497")
+    port -> Ok(ConnectionConfig(host: host, port: port, client_id: client_id))
+  }
+}
+
 /// Connect to IB TWS API using TCP socket
 /// Returns a connection handle on success, or an error on failure
 pub fn connect(config: ConnectionConfig) -> Result(Connection, ConnectionError) {

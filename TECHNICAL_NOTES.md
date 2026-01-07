@@ -260,9 +260,122 @@ export function send_bytes(socket, data) {
 4. Add market data request functionality
 5. Add order placement (paper trading only)
 
+## Port Detection Implementation
+
+### 10. Automatic Port Detection for IB TWS API
+
+**Issue**: Users switch between paper trading (port 7497) during the day and live trading (port 7496) at night. The library needs to automatically detect which port is available.
+
+**Discovery**:
+- The nc (netcat) command can be used to check if a port is listening
+- `nc -z -w <timeout> <host> <port>` exits with code 0 if port is available, non-zero otherwise
+- Using `execSync` from Node.js child_process allows synchronous port checking
+- This approach works reliably with ES modules and doesn't block the event loop
+
+**Implementation**:
+```javascript
+// src/connection_ffi.mjs
+import { execSync } from 'child_process';
+
+export function check_port_available(host, port, timeout = 1) {
+    try {
+        const result = execSync(`nc -z -w ${timeout} ${host} ${port} 2>&1`, {
+            encoding: 'utf8'
+        });
+        return result.includes('succeeded');
+    } catch (error) {
+        return false;
+    }
+}
+
+export function detect_ib_tws_port(host = "127.0.0.1", timeout = 1) {
+    console.log(`[Port Detection] Starting detection for ${host} with timeout ${timeout}s`);
+    
+    const paper_port = 7497;
+    const paper_available = check_port_available(host, paper_port, timeout);
+    if (paper_available) {
+        console.log(`[Port Detection] Port ${paper_port} (Paper Trading) is available`);
+        return paper_port;
+    }
+    
+    const live_port = 7496;
+    const live_available = check_port_available(host, live_port, timeout);
+    if (live_available) {
+        console.log(`[Port Detection] Port ${live_port} (Live Trading) is available`);
+        return live_port;
+    }
+    
+    console.log(`[Port Detection] Neither port 7496 nor 7497 is available on ${host}`);
+    return 0;
+}
+```
+
+**Gleam API**:
+```gleam
+@external(javascript, "./connection_ffi.mjs", "detect_ib_tws_port")
+pub fn detect_ib_tws_port(host: String, timeout: Int) -> Int
+
+/// Create connection config with automatic port detection
+pub fn config_auto_detect(
+  host: String,
+  client_id: Int,
+  timeout: Int,
+) -> Result(ConnectionConfig, String) {
+  let detected_port = detect_ib_tws_port(host, timeout)
+  case detected_port {
+    0 -> Error("No IB TWS server detected on ports 7496 or 7497")
+    port -> Ok(ConnectionConfig(host: host, port: port, client_id: client_id))
+  }
+}
+```
+
+**Usage Example**:
+```gleam
+case connection.config_auto_detect("127.0.0.1", client_id, 1) {
+  Ok(config) -> {
+    io.println("✓ Connected to port: " <> int.to_string(config.port))
+    // Proceed with connection
+  }
+  Error(err) -> {
+    io.println("❌ " <> err)
+    // Handle error - neither port is available
+  }
+}
+```
+
+**Technical Decisions**:
+1. **Return Type**: Returns `Int` where `0` means "not found", any other value is the port number
+   - Simpler than returning `Option(Int)` or `Result(Int, String)`
+   - Avoids Gleam FFI marshaling issues with complex types
+   - Easy to pattern match: `case port { 0 -> ...; _ -> ... }`
+
+2. **Detection Order**: Checks paper trading port (7497) first, then live trading port (7496)
+   - Prioritizes safer paper trading environment
+   - Matches typical development workflow
+
+3. **Timeout Parameter**: Uses seconds (not milliseconds) for nc command
+   - Default timeout of 1 second is reasonable for local connections
+   - Can be increased for slower networks
+
+4. **Logging**: Console.log statements provide debugging information
+   - Shows which port is being checked
+   - Indicates which port was detected
+   - Helps troubleshoot connection issues
+
+**Testing**:
+- Created `test/auto_port_detection_test.gleam` to verify functionality
+- Test successfully detected port 7496 (live trading) and connected to it
+- Demonstrates full handshake flow with auto-detected port
+
+**Code Reference**:
+- `src/connection_ffi.mjs:7-37` - Port detection implementation
+- `src/connection.gleam:108-134` - Gleam API for port detection
+- `test/auto_port_detection_test.gleam` - Complete test demonstrating usage
+
 ## References
 
 - IB TWS API Documentation: https://interactivebrokers.github.io/tws-api/
 - IB API Version Numbers: API_VersionNum.txt (in IB documentation)
 - Gleam Documentation: https://gleam.run/
 - Gleam JavaScript FFI: https://gleam.run/writing-javascript-ffi/
+- nc (netcat) manual: https://linux.die.net/man/1/nc
