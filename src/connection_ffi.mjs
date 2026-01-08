@@ -1,8 +1,10 @@
 /**
  * Foreign Function Interface (FFI) for Node.js integration
- * Provides JavaScript-specific functionality for the Gleam IB TWS API
+ * Provides JavaScript-specific functionality for Gleam IB TWS API
  */
 import { execSync } from 'child_process';
+import { appendFileSync, existsSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 
 /**
  * Get current timestamp as string
@@ -22,6 +24,16 @@ export function sleep(milliseconds) {
 }
 
 /**
+ * Keep the Node.js process alive by preventing immediate exit
+ * This is needed for event-driven code that waits for async callbacks
+ * @param {number} milliseconds - How long to keep process alive
+ * @returns {Promise<void>} Promise that resolves after the delay
+ */
+export function keep_alive(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+/**
  * Convert Gleam BitArray to Node.js Buffer and send to socket
  * @param {import('net').Socket} socket - Node.js socket instance
  * @param {import('gleam').BitArray} data - BitArray data to send
@@ -32,7 +44,7 @@ export function send_bytes(socket, data) {
         // Get the underlying Uint8Array from the BitArray
         const bytes = data.rawBuffer;
 
-        // Create Buffer from the bytes
+        // Create Buffer from bytes
         const buffer = Buffer.from(bytes);
 
         // Write buffer to socket
@@ -58,16 +70,31 @@ export function generate_client_id() {
 
 /**
  * Filter control characters from a string
- * Removes ASCII control characters (0x00-0x1f) except space (0x20)
+ * Removes ASCII control characters (0x00-0x1f) except space (0x20) and unit separator (0x1f)
+ * The unit separator (0x1f) is used by IB TWS to separate version from timestamp
  * @param {string} str - Input string
- * @returns {string} String with control characters removed
+ * @returns {string} String with control characters removed (except 0x1f)
  */
 export function filter_control_characters(str) {
-    return str.replace(/[\x00-\x1F]/g, '');
+    // Remove control characters 0x00-0x1e, but keep 0x1f (unit separator) and 0x20 (space)
+    return str.replace(/[\x00-\x1E]/g, '');
 }
 
 /**
- * Check if a TCP port is available (listening) on the local host
+ * Strip leading control characters from a string
+ * Only removes control characters from the START of the string
+ * Keeps NULL bytes (0x00) and other control characters in the middle
+ * @param {string} str - Input string
+ * @returns {string} String with leading control characters removed
+ */
+export function strip_leading_control_characters(str) {
+    // Remove only leading control characters 0x00-0x1F
+    // Keep NULL (0x00) and other control characters in the middle of the string
+    return str.replace(/^[\x00-\x1F]+/, '');
+}
+
+/**
+ * Check if a TCP port is available (listening) on local host
  * Uses nc (netcat) command for synchronous port checking
  * @param {string} host - Hostname or IP address
  * @param {number} port - Port number to check
@@ -131,4 +158,84 @@ export function detect_ib_tws_port(host = "127.0.0.1", timeout = 1) {
     console.log(`[Port Detection] Neither port 7496 nor 7497 is available on ${host}`);
     console.log(`[Port Detection] Returning 0`);
     return 0;
+}
+
+/**
+ * Write content to file with safety checks
+ * @param {string} filename - File path to write to
+ * @param {string} content - Content to write
+ * @param {boolean} append - Whether to append (true) or overwrite (false)
+ * @returns {string} "Ok" on success, "Error" on failure
+ */
+export function write_to_file(filename, content, append) {
+    try {
+        // Ensure directory exists
+        const directory = dirname(filename);
+        if (!existsSync(directory)) {
+            mkdirSync(directory, { recursive: true });
+        }
+
+        if (append) {
+            appendFileSync(filename, content, 'utf8');
+        } else {
+            // For overwrite, we would use writeFileSync
+            // But since gleam doesn't have overwrite support in the API yet
+            // we'll implement append-only for now
+            appendFileSync(filename, content, 'utf8');
+        }
+
+        return "Ok";
+    } catch (error) {
+        console.error('[write_to_file] Error:', error);
+        return "Error";
+    }
+}
+
+/**
+ * Clean server handshake response
+ * Removes leading length bytes and other control characters
+ * Returns cleaned string with NULL bytes preserved
+ * @param {string} data - Server response string
+ * @returns {string} Cleaned string ready for parsing
+ */
+export function clean_server_response(data) {
+    try {
+        console.log('[clean_server_response] Raw data length:', data.length);
+
+        // Skip first 4 bytes (message length) and parse the rest
+        let messageData = data.length > 4 ? data.substring(4) : data;
+
+        // Keep NULL bytes and printable characters, remove other control chars
+        let filtered = '';
+        for (let i = 0; i < messageData.length; i++) {
+            let char = messageData[i];
+            let code = char.charCodeAt(0);
+            // Keep NULL separator (0x00) and printable characters (0x20-0x7e)
+            if (code === 0x00 || (code >= 0x20 && code <= 0x7e)) {
+                filtered += char;
+            }
+        }
+
+        console.log('[clean_server_response] Filtered data hex:', filtered.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' '));
+
+        // Trim whitespace from ends (but not NULL bytes in middle)
+        let trimmed = filtered.replace(/^[\s]+|[\s]+$/g, '');
+
+        console.log('[clean_server_response] Cleaned response:', trimmed);
+
+        return trimmed;
+    } catch (error) {
+        console.error('[clean_server_response] Error:', error);
+        return data;
+    }
+}
+
+/**
+ * Simple file append function for logging
+ * @param {string} filename - File path to append to
+ * @param {string} content - Content to append
+ * @returns {string} "Ok" on success, "Error" on failure
+ */
+export function append_to_file(filename, content) {
+    return write_to_file(filename, content, true);
 }

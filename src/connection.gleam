@@ -132,6 +132,12 @@ pub fn generate_client_id() -> Int
 @external(javascript, "./connection_ffi.mjs", "sleep")
 pub fn sleep(milliseconds: Int) -> Nil
 
+/// Keep the Node.js process alive for specified milliseconds
+/// This is needed for event-driven code that waits for async callbacks
+/// The process will exit immediately after this function returns
+@external(javascript, "./connection_ffi.mjs", "keep_alive")
+pub fn keep_alive(milliseconds: Int) -> Nil
+
 /// Detect which IB TWS port is available (7496 or 7497)
 /// Tests both ports and returns the first one that is available
 /// Returns Ok(port) if a port is available, Error if neither port is available
@@ -302,7 +308,10 @@ pub fn receive(conn: Connection) -> Result(String, ConnectionError) {
 
 /// Close connection gracefully
 pub fn close(conn: Connection) -> Result(Nil, ConnectionError) {
-  node_socket_client.end(conn.socket)
+  //! I have commented this out because I don't want AI's code to 
+  //! close the connection stupidly without my control.
+  // node_socket_client.end(conn.socket)
+  echo conn.state
   Ok(Nil)
 }
 
@@ -311,3 +320,16 @@ pub fn destroy(conn: Connection) -> Result(Nil, ConnectionError) {
   node_socket_client.destroy(conn.socket)
   Ok(Nil)
 }
+
+/// Write content to file for logging purposes
+/// Uses Node.js fs module via FFI
+/// @external(javascript, "./connection_ffi.mjs", "write_to_file")
+/// fn write_to_file_external(filename: String, content: String, append: Bool) -> String
+/// Write content to file for logging
+/// Append parameter: True = append, False = overwrite
+@external(javascript, "./connection_ffi.mjs", "write_to_file")
+pub fn write_to_file(
+  filename: String,
+  content: String,
+  append: Bool,
+) -> Result(Nil, String)

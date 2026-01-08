@@ -1,19 +1,13 @@
 import gleam/bit_array
 import gleam/int
 import gleam/io
-import gleam/list
 import gleam/string
+import message_encoder
 
 /// Filter control characters from a string using JavaScript FFI
-/// Removes ASCII control characters (0x00-0x1e) except space (0x20)
-@external(javascript, "./connection_ffi.mjs", "strip_leading_control_characters")
-pub fn strip_leading_control_characters(str: String) -> String
-
-/// Clean server handshake response using JavaScript FFI
-/// Removes leading length bytes and control characters, preserves NULL byte
-/// Returns: Cleaned string ready for parsing
-@external(javascript, "./connection_ffi.mjs", "clean_server_response")
-pub fn clean_server_response(data: String) -> String
+/// Removes ASCII control characters (0x00-0x1f) except space (0x20)
+@external(javascript, "./connection_ffi.mjs", "filter_control_characters")
+pub fn filter_control_characters(str: String) -> String
 
 /// IB TWS API Message Types
 pub type MessageCode {
@@ -42,7 +36,7 @@ pub type Message {
 }
 
 /// Create START_API handshake message using V100+ protocol
-/// This is first message sent to IB TWS API
+/// This is the first message sent to IB TWS API
 ///
 /// Protocol format:
 /// - "API\0" (4 bytes: 'A', 'P', 'I', null byte)
@@ -100,14 +94,25 @@ pub fn start_api_message(min_version: Int, max_version: Int) -> BitArray {
 }
 
 /// Create client ID message to send after handshake
-/// Client ID must be sent as a separate message after receiving server response
+/// Client ID must be sent as a raw 4-byte integer after receiving server response
+///
+/// According to IB TWS V100+ protocol, client ID is sent as:
+/// - Just a 4-byte big-endian integer (no message code, no length prefix)
 ///
 /// Parameters:
 /// - client_id: Client ID to identify this connection (unique per connection)
 ///
-/// Returns: BitArray containing the client ID as a 4-byte integer
+/// Returns: BitArray containing 4-byte client ID
 pub fn client_id_message(client_id: Int) -> BitArray {
-  int_to_four_bytes_big_endian(client_id)
+  // Client ID message format:
+  // Just 4-byte big-endian integer (no message code, no length prefix)
+  let result = <<client_id:32>>
+
+  io.println("[DEBUG] Client ID message:")
+  io.println("  Client ID: " <> int.to_string(client_id))
+  io.println("  Format: 4-byte big-endian integer (no message code)")
+
+  result
 }
 
 /// Convert integer to 4 bytes (big-endian)
@@ -122,40 +127,41 @@ fn int_to_four_bytes_big_endian(value: Int) -> BitArray {
 }
 
 /// Parse server handshake response
-/// Expected format: "VERSION<NULL separator>timestamp EST"
-/// Example: "200\020260107 08:02:02 EST"
+/// Expected format: "VERSION<timestamp> EST"
+/// Example: "20020260107 08:02:02 EST"
 /// Note: The response may have leading null bytes or control characters
 /// The IB TWS protocol includes a 4-byte length prefix before actual data
-/// Version and timestamp are separated by NULL byte (0x00)
 pub fn parse_server_response(data: String) -> Result(#(Int, String), String) {
-  // Clean the data first using FFI (removes control chars, preserves NULL)
-  let cleaned = clean_server_response(data)
+  // The IB TWS server response includes a 4-byte length prefix
+  // We need to skip this and extract the actual data
+  // Also remove any control characters (0x00-0x1f) except space (0x20)
 
-  // Split on NULL byte (0x00)
-  let parts = string.split(cleaned, "\u{0000}")
+  // Use JavaScript FFI to filter out control characters
+  let filtered_data = filter_control_characters(data)
 
-  // Filter out empty strings from leading/trailing NULLs
-  let non_empty_parts = list.filter(parts, fn(s) { s != "" })
+  // Trim whitespace from the filtered data
+  let trimmed_data = string.trim(filtered_data)
 
-  case non_empty_parts {
-    [version_str, ..rest] -> {
-      // Parse version number
-      case int.parse(string.trim(version_str)) {
-        Ok(version) -> {
-          // Join remaining parts for timestamp (in case timestamp contains NULL)
-          let timestamp_str = string.join(rest, "\u{0000}")
-          Ok(#(version, string.trim(timestamp_str)))
-        }
-        Error(_) -> Error("Invalid version number: " <> version_str)
+  io.println("[DEBUG] Cleaned server response: " <> trimmed_data)
+
+  // Parse version number from the start of the string
+  case int.parse(trimmed_data) {
+    Ok(version) -> {
+      // Extract timestamp (everything after the version number)
+      let version_str = int.to_string(version)
+      let timestamp = case
+        string.slice(
+          trimmed_data,
+          string.length(version_str),
+          string.length(trimmed_data),
+        )
+      {
+        "" -> "No timestamp"
+        ts -> string.trim(ts)
       }
+      Ok(#(version, timestamp))
     }
-    _ -> {
-      // No NULL byte found, try to parse entire string as version
-      case int.parse(string.trim(cleaned)) {
-        Ok(version) -> Ok(#(version, "No timestamp"))
-        Error(_) -> Error("Invalid server response format: " <> cleaned)
-      }
-    }
+    Error(_) -> Error("Invalid server response format: " <> trimmed_data)
   }
 }
 

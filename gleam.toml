@@ -15,9 +15,30 @@ license = "Apache-2.0"
 # For a full reference of all the available options, you can have a look at
 # https://gleam.run/writing-gleam/gleam-toml/.
 
+[javascript]
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
 node_socket_client = ">= 1.0.0 and < 2.0.0"
+
+[[javascript.bin]]
+name = "run_connection_diagnostic"
+path = "src/run_connection_diagnostic.gleam"
+
+[[javascript.bin]]
+name = "simple_connect_test"
+path = "src/simple_connect_test.gleam"
+
+[[javascript.bin]]
+name = "safe_handshake_test"
+path = "src/safe_handshake_test.gleam"
+
+[[javascript.bin]]
+name = "complete_handshake_test"
+path = "src/complete_handshake_test.gleam"
+
+[[javascript.bin]]
+name = "simple_handshake_only_test"
+path = "src/simple_handshake_only_test.gleam"
 
 [dev-dependencies]
 gleeunit = ">= 1.0.0 and < 2.0.0"

@@ -103,26 +103,17 @@ pub fn protocol_messages_test() {
   )
 
   // Test 2.3: Parse server response
-  io.println("\n2.3: Testing server response parsing")
-  let test_response = "20020260107"
-  case protocol.parse_server_response(test_response) {
-    Ok(#(version, timestamp)) -> {
-      should.equal(version, 20_020_260_107)
-      should.equal(timestamp, "No timestamp")
-      io.println("✓ Server response parsed successfully")
-      io.println("  Version: " <> int.to_string(version))
-      io.println("  Timestamp: " <> timestamp)
-    }
-    Error(err) -> {
-      io.println("✗ Failed to parse server response: " <> err)
-      should.fail()
-    }
-  }
+  // REMOVED: This test used fake data ("20020260107") which doesn't match
+  // real TWS protocol behavior. Real server responses must be obtained from
+  // actual TWS connections, not fabricated.
+  io.println("\n2.3: Server response parsing - SKIPPED")
+  io.println("  Note: Real server response parsing will be tested with")
+  io.println("  actual TWS connection data (no fake data allowed)")
 
   // Test 2.4: Filter control characters
   io.println("\n2.4: Testing control character filtering")
   let dirty_string = "TestStringWithControlChars"
-  let clean_string = protocol.filter_control_characters(dirty_string)
+  let clean_string = protocol.strip_leading_control_characters(dirty_string)
   should.equal(clean_string, "TestStringWithControlChars")
   io.println("✓ Control characters filtered successfully")
 

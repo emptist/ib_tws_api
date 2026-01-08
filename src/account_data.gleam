@@ -3,6 +3,7 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/string
+import message_encoder
 
 /// Account data request types for IB TWS API
 /// This module provides functions to request positions and account summaries
@@ -12,7 +13,8 @@ pub fn request_positions() -> BitArray {
   // REQ_POSITIONS message format:
   // Message code: 13 (2 bytes, big-endian)
   // Version: 1 (4 bytes)
-  <<13:16, 1:32>>
+  let payload = <<13:16, 1:32>>
+  message_encoder.encode_message(13, payload)
 }
 
 /// Cancel position updates
@@ -20,7 +22,8 @@ pub fn request_positions() -> BitArray {
 pub fn cancel_positions() -> BitArray {
   // CANCEL_POSITIONS message format:
   // Message code: 14 (2 bytes, big-endian)
-  <<14:16>>
+  let payload = <<14:16>>
+  message_encoder.encode_message(14, payload)
 }
 
 /// Account summary tags - specify which data to retrieve
@@ -140,7 +143,7 @@ pub fn request_account_summary(
   // Group name: (variable)
   // Tags length: (1 byte)
   // Tags: (variable)
-  <<
+  let payload = <<
     6:16,
     1:32,
     req_id:32,
@@ -149,6 +152,7 @@ pub fn request_account_summary(
     tags_len:8,
     tags_string:utf8,
   >>
+  message_encoder.encode_message(6, payload)
 }
 
 /// Cancel account summary request
@@ -157,7 +161,19 @@ pub fn cancel_account_summary(req_id: Int) -> BitArray {
   // CANCEL_ACCOUNT_SUMMARY message format:
   // Message code: 7 (2 bytes, big-endian)
   // Request ID: (4 bytes)
-  <<7:16, req_id:32>>
+  let payload = <<7:16, req_id:32>>
+  message_encoder.encode_message(7, payload)
+}
+
+/// Request managed accounts list
+/// Message code: 15 (REQ_MANAGED_ACCTS)
+/// Returns a comma-separated list of account IDs
+pub fn request_managed_accounts() -> BitArray {
+  // REQ_MANAGED_ACCTS message format:
+  // Message code: 15 (2 bytes, big-endian)
+  // Version: 1 (4 bytes) - required for V100+ protocol
+  let payload = <<15:16, 1:32>>
+  message_encoder.encode_message(15, payload)
 }
 
 /// Create a list of common account summary tags for comprehensive account data
