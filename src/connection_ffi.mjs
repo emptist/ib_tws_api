@@ -4,6 +4,34 @@ export function string_to_hex(str) {
         .join(' ');
 }
 
+export function strip_leading_control_characters(str) {
+    // Remove ASCII control characters (0x00-0x1e) except space (0x20)
+    return str.replace(/[\x00-\x1e]/g, '');
+}
+
+export function clean_server_response(data) {
+    // Remove leading control characters and length bytes
+    // Preserve NULL byte separators in actual data
+    let cleaned = data.replace(/^[\x00-\x1e]+/, '');
+    return cleaned;
+}
+
+export function filter_control_characters(str) {
+    // Filter out control characters from string
+    return str.replace(/[\x00-\x1f]/g, '');
+}
+
+export function send_bytes(socket, data) {
+    // Convert BitArray to Buffer and send
+    const buffer = Buffer.from(data);
+    try {
+        socket.write(buffer);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 export function get_timestamp() {
     return new Date().toISOString();
 }
