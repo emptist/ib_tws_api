@@ -5,6 +5,7 @@ import gleam/bit_array
 import gleam/int
 import gleam/io
 import gleam/option.{Some}
+import message_encoder
 import order_management
 import protocol_fixed as protocol
 
@@ -60,8 +61,10 @@ pub fn main() {
 
       // Send handshake
       io.println("STEP 1: Sending handshake...")
-      let handshake = protocol.start_api_message(100, 200)
-      case connection.send_bytes(conn, handshake) {
+      let handshake = message_encoder.start_api_message(config.client_id)
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake)
+      case connection.send_bytes(conn, handshake_bytes) {
         Ok(_) -> io.println("✅ Handshake sent")
         Error(e) ->
           io.println("❌ Error sending handshake: " <> error_to_string(e))
@@ -91,11 +94,13 @@ pub fn main() {
       io.println("QUESTION 1: Which accounts do we have?")
       io.println("Requesting managed accounts...")
       let accounts_msg = account_data.request_managed_accounts()
+      let accounts_bytes =
+        message_encoder.add_length_prefix_to_string(accounts_msg)
       io.println(
         "[DEBUG] Managed accounts request message length: "
-        <> int.to_string(bit_array.byte_size(accounts_msg)),
+        <> int.to_string(bit_array.byte_size(accounts_bytes)),
       )
-      case connection.send_bytes(conn, accounts_msg) {
+      case connection.send_bytes(conn, accounts_bytes) {
         Ok(_) -> io.println("✅ Managed accounts request sent")
         Error(e) -> io.println("❌ Error: " <> error_to_string(e))
       }
@@ -109,12 +114,14 @@ pub fn main() {
       io.println("Requesting account updates (positions and portfolio)...")
 
       // Request positions
-      let positions_msg = account_data.request_positions()
+      let positions_msg = account_data.request_positions(1)
+      let positions_bytes =
+        message_encoder.add_length_prefix_to_string(positions_msg)
       io.println(
         "[DEBUG] Positions request message length: "
-        <> int.to_string(bit_array.byte_size(positions_msg)),
+        <> int.to_string(bit_array.byte_size(positions_bytes)),
       )
-      case connection.send_bytes(conn, positions_msg) {
+      case connection.send_bytes(conn, positions_bytes) {
         Ok(_) -> io.println("✅ Positions request sent")
         Error(e) -> io.println("❌ Error: " <> error_to_string(e))
       }
@@ -126,11 +133,13 @@ pub fn main() {
           "All",
           account_data.common_account_tags(),
         )
+      let account_summary_bytes =
+        message_encoder.add_length_prefix_to_string(account_summary_msg)
       io.println(
         "[DEBUG] Account summary message length: "
-        <> int.to_string(bit_array.byte_size(account_summary_msg)),
+        <> int.to_string(bit_array.byte_size(account_summary_bytes)),
       )
-      case connection.send_bytes(conn, account_summary_msg) {
+      case connection.send_bytes(conn, account_summary_bytes) {
         Ok(_) -> io.println("✅ Account summary request sent")
         Error(e) -> io.println("❌ Error: " <> error_to_string(e))
       }

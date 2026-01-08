@@ -4,6 +4,7 @@ import gleam/int
 import gleam/io
 import gleam/option.{Some}
 import gleam/result
+import message_encoder
 import protocol_fixed as protocol
 
 pub fn main() {
@@ -36,9 +37,11 @@ pub fn main() {
 
       // Step 1: Send handshake IMMEDIATELY
       io.println("STEP 1: Sending handshake...")
-      let handshake = protocol.start_api_message(100, 200)
+      let handshake = message_encoder.start_api_message(config.client_id)
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake)
 
-      case connection.send_bytes(conn, handshake) {
+      case connection.send_bytes(conn, handshake_bytes) {
         Ok(_) -> io.println("✓ Handshake sent")
         Error(_) -> io.println("✗ Error sending handshake")
       }
@@ -59,8 +62,9 @@ pub fn main() {
       // Step 3: Request managed accounts
       io.println("\nSTEP 3: Requesting managed accounts...")
       let msg = account_data.request_managed_accounts()
+      let msg_bytes = message_encoder.add_length_prefix_to_string(msg)
 
-      case connection.send_bytes(conn, msg) {
+      case connection.send_bytes(conn, msg_bytes) {
         Ok(_) -> io.println("✓ Managed accounts request sent")
         Error(_) -> io.println("✗ Error sending request")
       }

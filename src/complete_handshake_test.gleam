@@ -99,15 +99,17 @@ pub fn main() {
       // Send handshake
       io.println("📤 [SENDING HANDSHAKE]")
       io.println("   Message: START_API (v100..200)")
-      let handshake = protocol.start_api_message(100, 200)
+      let handshake = message_encoder.start_api_message(client_id)
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake)
       io.println(
         "   Handshake size: "
-        <> int.to_string(bit_array.byte_size(handshake))
+        <> int.to_string(bit_array.byte_size(handshake_bytes))
         <> " bytes",
       )
       io.println("")
 
-      case connection.send_bytes(conn, handshake) {
+      case connection.send_bytes(conn, handshake_bytes) {
         Ok(_) -> {
           io.println("✅ Handshake sent successfully")
           io.println("")
@@ -137,14 +139,16 @@ pub fn main() {
 
               let account_request =
                 message_encoder.request_account_summary(1, "All", "$LEDGER:ALL")
+              let account_request_bytes =
+                message_encoder.add_length_prefix_to_string(account_request)
               io.println(
                 "   Request message size: "
-                <> int.to_string(bit_array.byte_size(account_request))
+                <> int.to_string(bit_array.byte_size(account_request_bytes))
                 <> " bytes",
               )
               io.println("")
 
-              case connection.send_bytes(conn, account_request) {
+              case connection.send_bytes(conn, account_request_bytes) {
                 Ok(_) -> {
                   io.println("✅ Account summary request sent successfully")
                   io.println("")

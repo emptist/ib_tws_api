@@ -4,6 +4,7 @@ import gleam/float
 import gleam/int
 import gleam/io
 import gleam/option.{Some}
+import message_encoder
 import messages
 import order_management
 import orders
@@ -101,8 +102,10 @@ pub fn main() {
 
       // Perform handshake
       io.println("🤝 Performing API handshake...")
-      let handshake = protocol.start_api_message(100, 200)
-      let _ = connection.send_bytes(conn, handshake)
+      let handshake = message_encoder.start_api_message(config.client_id)
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake)
+      let _ = connection.send_bytes(conn, handshake_bytes)
       connection.sleep(1000)
       let client_id_msg = protocol.client_id_message(config.client_id)
       let _ = connection.send_bytes(conn, client_id_msg)
@@ -128,8 +131,10 @@ pub fn main() {
       io.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
       io.println("")
       io.println("📊 Requesting positions...")
-      let positions_msg = account_data.request_positions()
-      let _ = connection.send_bytes(conn, positions_msg)
+      let positions_msg = account_data.request_positions(1)
+      let positions_bytes =
+        message_encoder.add_length_prefix_to_string(positions_msg)
+      let _ = connection.send_bytes(conn, positions_bytes)
       connection.sleep(1000)
 
       io.println("💰 Requesting account summary (funds)...")
@@ -137,7 +142,9 @@ pub fn main() {
       let tags = account_data.common_account_tags()
       let acc_summary_msg =
         account_data.request_account_summary(req_id, "All", tags)
-      let _ = connection.send_bytes(conn, acc_summary_msg)
+      let acc_summary_bytes =
+        message_encoder.add_length_prefix_to_string(acc_summary_msg)
+      let _ = connection.send_bytes(conn, acc_summary_bytes)
       connection.sleep(3000)
       io.println("")
 
@@ -256,12 +263,16 @@ pub fn main() {
 
       io.println("Cancelling position updates...")
       let cancel_pos_msg = account_data.cancel_positions()
-      let _ = connection.send_bytes(conn, cancel_pos_msg)
+      let cancel_pos_bytes =
+        message_encoder.add_length_prefix_to_string(cancel_pos_msg)
+      let _ = connection.send_bytes(conn, cancel_pos_bytes)
       io.println("✅ Positions cancelled")
 
       io.println("Cancelling account summary...")
       let cancel_acc_msg = account_data.cancel_account_summary(req_id)
-      let _ = connection.send_bytes(conn, cancel_acc_msg)
+      let cancel_acc_bytes =
+        message_encoder.add_length_prefix_to_string(cancel_acc_msg)
+      let _ = connection.send_bytes(conn, cancel_acc_bytes)
       io.println("✅ Account summary cancelled")
       io.println("")
 

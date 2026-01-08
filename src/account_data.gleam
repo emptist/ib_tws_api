@@ -9,21 +9,38 @@ import message_encoder
 /// This module provides functions to request positions and account summaries
 /// Request all current positions from IB TWS
 /// Message code: 13 (REQ_POSITIONS)
-pub fn request_positions() -> BitArray {
-  // REQ_POSITIONS message format:
-  // Message code: 13 (2 bytes, big-endian)
-  // Version: 1 (4 bytes)
-  let payload = <<13:16, 1:32>>
-  message_encoder.encode_message(13, payload)
+pub fn request_positions(request_id: Int) -> String {
+  // REQ_POSITIONS message format: "13\u{0000}1\u{0000}"
+  // Message code: 13
+  // Version: 1
+  // Note: request_id parameter for future use, not used in current format
+
+  let tokens = [
+    int.to_string(13),
+    // REQ_POSITIONS message ID
+    int.to_string(1),
+    // Version
+  ]
+
+  let result = string.join(tokens, "\u{0000}") <> "\u{0000}"
+  io.println("[AccountData] REQ_POSITIONS: " <> result)
+  result
 }
 
 /// Cancel position updates
 /// Message code: 14 (CANCEL_POSITIONS)
-pub fn cancel_positions() -> BitArray {
-  // CANCEL_POSITIONS message format:
-  // Message code: 14 (2 bytes, big-endian)
-  let payload = <<14:16>>
-  message_encoder.encode_message(14, payload)
+pub fn cancel_positions() -> String {
+  // CANCEL_POSITIONS message format: "14\u{0000}"
+  // Message code: 14
+
+  let tokens = [
+    int.to_string(14),
+    // CANCEL_POSITIONS message ID
+  ]
+
+  let result = string.join(tokens, "\u{0000}") <> "\u{0000}"
+  io.println("[AccountData] CANCEL_POSITIONS: " <> result)
+  result
 }
 
 /// Account summary tags - specify which data to retrieve
@@ -116,7 +133,7 @@ pub fn account_summary_tag_to_string(tag: AccountSummaryTag) -> String {
 
 /// Request account summary with specified tags
 /// Message code: 6 (REQ_ACCOUNT_SUMMARY)
-/// 
+///
 /// Parameters:
 /// - req_id: Request ID to identify this request (must be unique)
 /// - group_name: Account group name (e.g., "All")
@@ -125,55 +142,71 @@ pub fn request_account_summary(
   req_id: Int,
   group_name: String,
   tags: List(AccountSummaryTag),
-) -> BitArray {
+) -> String {
   // Convert tags to comma-separated string
   let tags_string =
     tags
     |> list.map(account_summary_tag_to_string)
     |> string.join(",")
 
-  let group_len = string.length(group_name)
-  let tags_len = string.length(tags_string)
+  // REQ_ACCOUNT_SUMMARY message format: "6\u{0000}1\u{0000}req_id\u{0000}group_name\u{0000}tags"
+  // Message code: 6
+  // Version: 1
+  // Request ID
+  // Group name
+  // Tags (comma-separated)
 
-  // REQ_ACCOUNT_SUMMARY message format:
-  // Message code: 6 (2 bytes, big-endian)
-  // Version: 1 (4 bytes)
-  // Request ID: (4 bytes)
-  // Group name length: (1 byte)
-  // Group name: (variable)
-  // Tags length: (1 byte)
-  // Tags: (variable)
-  let payload = <<
-    6:16,
-    1:32,
-    req_id:32,
-    group_len:8,
-    group_name:utf8,
-    tags_len:8,
-    tags_string:utf8,
-  >>
-  message_encoder.encode_message(6, payload)
+  let tokens = [
+    int.to_string(6),
+    // REQ_ACCOUNT_SUMMARY message ID
+    int.to_string(1),
+    // Version
+    int.to_string(req_id),
+    group_name,
+    tags_string,
+  ]
+
+  let result = string.join(tokens, "\u{0000}") <> "\u{0000}"
+  io.println("[AccountData] REQ_ACCOUNT_SUMMARY: " <> result)
+  result
 }
 
 /// Cancel account summary request
 /// Message code: 7 (CANCEL_ACCOUNT_SUMMARY)
-pub fn cancel_account_summary(req_id: Int) -> BitArray {
-  // CANCEL_ACCOUNT_SUMMARY message format:
-  // Message code: 7 (2 bytes, big-endian)
-  // Request ID: (4 bytes)
-  let payload = <<7:16, req_id:32>>
-  message_encoder.encode_message(7, payload)
+pub fn cancel_account_summary(req_id: Int) -> String {
+  // CANCEL_ACCOUNT_SUMMARY message format: "7\u{0000}req_id"
+  // Message code: 7
+  // Request ID
+
+  let tokens = [
+    int.to_string(7),
+    // CANCEL_ACCOUNT_SUMMARY message ID
+    int.to_string(req_id),
+  ]
+
+  let result = string.join(tokens, "\u{0000}") <> "\u{0000}"
+  io.println("[AccountData] CANCEL_ACCOUNT_SUMMARY: " <> result)
+  result
 }
 
 /// Request managed accounts list
 /// Message code: 15 (REQ_MANAGED_ACCTS)
 /// Returns a comma-separated list of account IDs
-pub fn request_managed_accounts() -> BitArray {
-  // REQ_MANAGED_ACCTS message format:
-  // Message code: 15 (2 bytes, big-endian)
-  // Version: 1 (4 bytes) - required for V100+ protocol
-  let payload = <<15:16, 1:32>>
-  message_encoder.encode_message(15, payload)
+pub fn request_managed_accounts() -> String {
+  // REQ_MANAGED_ACCTS message format: "15\u{0000}1\u{0000}"
+  // Message code: 15
+  // Version: 1
+
+  let tokens = [
+    int.to_string(15),
+    // REQ_MANAGED_ACCTS message ID
+    int.to_string(1),
+    // Version
+  ]
+
+  let result = string.join(tokens, "\u{0000}") <> "\u{0000}"
+  io.println("[AccountData] REQ_MANAGED_ACCTS: " <> result)
+  result
 }
 
 /// Create a list of common account summary tags for comprehensive account data
@@ -198,12 +231,13 @@ pub fn common_account_tags() -> List(AccountSummaryTag) {
 }
 
 /// Debug: Print position request message details
-pub fn debug_position_request() {
-  let msg = request_positions()
-  let size = bit_array.byte_size(msg)
+pub fn debug_position_request(request_id: Int) {
+  let msg = request_positions(request_id)
+  let size = string.length(msg)
   io.println("=== Position Request Message ===")
   io.println("Message size: " <> int.to_string(size) <> " bytes")
   io.println("Message code: 13 (REQ_POSITIONS)")
+  io.println("Message: " <> msg)
   io.println("")
 }
 
@@ -214,7 +248,7 @@ pub fn debug_account_summary_request(
   tags: List(AccountSummaryTag),
 ) {
   let msg = request_account_summary(req_id, group_name, tags)
-  let size = bit_array.byte_size(msg)
+  let size = string.length(msg)
   let tags_string =
     tags
     |> list.map(account_summary_tag_to_string)
@@ -225,5 +259,6 @@ pub fn debug_account_summary_request(
   io.println("Request ID: " <> int.to_string(req_id))
   io.println("Group name: " <> group_name)
   io.println("Tags: " <> tags_string)
+  io.println("Message: " <> msg)
   io.println("")
 }

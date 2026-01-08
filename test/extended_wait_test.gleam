@@ -5,6 +5,7 @@ import gleam/bit_array
 import gleam/int
 import gleam/io
 import gleam/option.{Some}
+import message_encoder
 import protocol_fixed as protocol
 
 /// Extended wait test to see if we eventually receive account data
@@ -37,8 +38,10 @@ pub fn main() {
       io.println("✅ CONNECTION ESTABLISHED!")
 
       // Send handshake
-      let handshake = protocol.start_api_message(100, 200)
-      case connection.send_bytes(conn, handshake) {
+      let handshake = message_encoder.start_api_message(config.client_id)
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake)
+      case connection.send_bytes(conn, handshake_bytes) {
         Ok(_) -> io.println("✅ Handshake sent")
         Error(e) ->
           io.println("❌ Error sending handshake: " <> error_to_string(e))
@@ -59,7 +62,9 @@ pub fn main() {
       // Request managed accounts (wait much longer for response)
       io.println("\nREQUESTING MANAGED ACCOUNTS (waiting 30 seconds)...")
       let accounts_msg = account_data.request_managed_accounts()
-      case connection.send_bytes(conn, accounts_msg) {
+      let accounts_bytes =
+        message_encoder.add_length_prefix_to_string(accounts_msg)
+      case connection.send_bytes(conn, accounts_bytes) {
         Ok(_) -> io.println("✅ Managed accounts request sent")
         Error(e) -> io.println("❌ Error: " <> error_to_string(e))
       }

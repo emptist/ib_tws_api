@@ -4,6 +4,11 @@ import gleam/io
 import gleam/list
 import gleam/string
 
+/// Convert string to hex representation for debugging
+/// Uses JavaScript FFI for efficient conversion
+@external(javascript, "./connection_ffi.mjs", "string_to_hex")
+pub fn string_to_hex(str: String) -> String
+
 /// Filter control characters from a string using JavaScript FFI
 /// Removes ASCII control characters (0x00-0x1e) except space (0x20)
 @external(javascript, "./connection_ffi.mjs", "strip_leading_control_characters")

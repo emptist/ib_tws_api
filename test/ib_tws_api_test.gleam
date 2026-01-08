@@ -9,6 +9,7 @@ import gleam/string
 import gleeunit
 import gleeunit/should
 import market_data
+import message_encoder
 import orders
 import protocol
 
@@ -86,8 +87,9 @@ pub fn protocol_messages_test() {
 
   // Test 2.1: Start API handshake message
   io.println("\n2.1: Creating START_API handshake message")
-  let handshake = protocol.start_api_message(100, 200)
-  let handshake_size = bit_array.byte_size(handshake)
+  let handshake = message_encoder.start_api_message(100)
+  let handshake_bytes = message_encoder.add_length_prefix_to_string(handshake)
+  let handshake_size = bit_array.byte_size(handshake_bytes)
   should.be_true(handshake_size > 0)
   io.println(
     "✓ Handshake message created: " <> int.to_string(handshake_size) <> " bytes",
@@ -261,8 +263,10 @@ pub fn account_data_test() {
 
   // Test 5.1: Create position request message
   io.println("\n5.1: Creating position request message")
-  let pos_msg = account_data.request_positions()
-  let pos_size = bit_array.byte_size(pos_msg)
+  let pos_msg = account_data.request_positions(100)
+  // Added request_id parameter
+  let pos_bytes = message_encoder.add_length_prefix_to_string(pos_msg)
+  let pos_size = bit_array.byte_size(pos_bytes)
   should.be_true(pos_size > 0)
   io.println(
     "✓ Position request created: " <> int.to_string(pos_size) <> " bytes",
@@ -271,7 +275,9 @@ pub fn account_data_test() {
   // Test 5.2: Create cancel positions message
   io.println("\n5.2: Creating cancel positions message")
   let cancel_pos_msg = account_data.cancel_positions()
-  let cancel_pos_size = bit_array.byte_size(cancel_pos_msg)
+  let cancel_pos_bytes =
+    message_encoder.add_length_prefix_to_string(cancel_pos_msg)
+  let cancel_pos_size = bit_array.byte_size(cancel_pos_bytes)
   should.be_true(cancel_pos_size > 0)
   io.println(
     "✓ Cancel positions message created: "
@@ -285,7 +291,8 @@ pub fn account_data_test() {
   let group_name = "All"
   let tags = account_data.common_account_tags()
   let acc_msg = account_data.request_account_summary(req_id, group_name, tags)
-  let acc_size = bit_array.byte_size(acc_msg)
+  let acc_bytes = message_encoder.add_length_prefix_to_string(acc_msg)
+  let acc_size = bit_array.byte_size(acc_bytes)
   should.be_true(acc_size > 0)
   io.println(
     "✓ Account summary request created: " <> int.to_string(acc_size) <> " bytes",
@@ -303,7 +310,8 @@ pub fn account_data_test() {
   ]
   let specific_msg =
     account_data.request_account_summary(101, "All", specific_tags)
-  let specific_size = bit_array.byte_size(specific_msg)
+  let specific_bytes = message_encoder.add_length_prefix_to_string(specific_msg)
+  let specific_size = bit_array.byte_size(specific_bytes)
   should.be_true(specific_size > 0)
   io.println(
     "✓ Specific account summary request created: "
@@ -314,7 +322,9 @@ pub fn account_data_test() {
   // Test 5.5: Create cancel account summary message
   io.println("\n5.5: Creating cancel account summary message")
   let cancel_acc_msg = account_data.cancel_account_summary(req_id)
-  let cancel_acc_size = bit_array.byte_size(cancel_acc_msg)
+  let cancel_acc_bytes =
+    message_encoder.add_length_prefix_to_string(cancel_acc_msg)
+  let cancel_acc_size = bit_array.byte_size(cancel_acc_bytes)
   should.be_true(cancel_acc_size > 0)
   io.println(
     "✓ Cancel account summary message created: "
@@ -420,8 +430,9 @@ pub fn message_size_validation_test() {
 
   // Test 8.1: Handshake message size
   io.println("\n8.1: Validating handshake message size")
-  let handshake = protocol.start_api_message(100, 200)
-  let handshake_size = bit_array.byte_size(handshake)
+  let handshake = message_encoder.start_api_message(100)
+  let handshake_bytes = message_encoder.add_length_prefix_to_string(handshake)
+  let handshake_size = bit_array.byte_size(handshake_bytes)
   should.be_true(handshake_size >= 9)
   // API\0 (4) + length (4) + min version string (1)
   io.println(

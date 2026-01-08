@@ -2,6 +2,7 @@ import account_data
 import connection
 import gleam/io
 import gleam/list
+import message_encoder
 
 /// Query and display all available accounts from IB TWS API
 pub fn main() {
@@ -21,8 +22,9 @@ pub fn main() {
       io.println("\nRequesting account summary...")
       let tags = account_data.common_account_tags()
       let msg = account_data.request_account_summary(5001, "All", tags)
+      let msg_bytes = message_encoder.add_length_prefix_to_string(msg)
 
-      case connection.send_bytes(conn, msg) {
+      case connection.send_bytes(conn, msg_bytes) {
         Ok(_) -> {
           io.println("✓ Account summary request sent")
           io.println("\nNote: Account data will be received via callbacks")
@@ -34,9 +36,11 @@ pub fn main() {
 
       // Request positions
       io.println("\nRequesting positions...")
-      let pos_msg = account_data.request_positions()
+      let pos_msg = account_data.request_positions(5002)
+      // Added request_id parameter
+      let pos_bytes = message_encoder.add_length_prefix_to_string(pos_msg)
 
-      case connection.send_bytes(conn, pos_msg) {
+      case connection.send_bytes(conn, pos_bytes) {
         Ok(_) -> {
           io.println("✓ Positions request sent")
           io.println("\nPosition data will be streamed")

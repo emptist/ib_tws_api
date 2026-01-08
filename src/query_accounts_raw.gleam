@@ -4,6 +4,7 @@ import gleam/int
 import gleam/io
 import gleam/option.{Some}
 import gleam/string
+import message_encoder
 import protocol
 
 /// Query and display raw account data from IB TWS API
@@ -33,9 +34,11 @@ pub fn main() {
 
       // Perform IB TWS V100+ handshake
       io.println("\nPerforming IB TWS V100+ handshake...")
-      let handshake_msg = protocol.start_api_message(100, 200)
+      let handshake_msg = message_encoder.start_api_message(config.client_id)
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake_msg)
 
-      case connection.send_bytes(conn, handshake_msg) {
+      case connection.send_bytes(conn, handshake_bytes) {
         Ok(_) -> io.println("✓ Handshake message sent")
         Error(_) -> io.println("✗ Error sending handshake")
       }
@@ -60,8 +63,10 @@ pub fn main() {
       // Try both managed accounts and account summary
       io.println("\nRequesting managed accounts list...")
       let managed_accts_msg = account_data.request_managed_accounts()
+      let managed_accts_bytes =
+        message_encoder.add_length_prefix_to_string(managed_accts_msg)
 
-      case connection.send_bytes(conn, managed_accts_msg) {
+      case connection.send_bytes(conn, managed_accts_bytes) {
         Ok(_) -> io.println("✓ Managed accounts request sent")
         Error(_) -> io.println("✗ Error sending request")
       }
@@ -71,8 +76,10 @@ pub fn main() {
       let tags = account_data.common_account_tags()
       let acc_summary_msg =
         account_data.request_account_summary(req_id, "All", tags)
+      let acc_summary_bytes =
+        message_encoder.add_length_prefix_to_string(acc_summary_msg)
 
-      case connection.send_bytes(conn, acc_summary_msg) {
+      case connection.send_bytes(conn, acc_summary_bytes) {
         Ok(_) -> io.println("✓ Account summary request sent")
         Error(_) -> io.println("✗ Error sending request")
       }

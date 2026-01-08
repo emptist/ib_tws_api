@@ -1,6 +1,9 @@
+import gleam/bit_array
 import gleam/io
 import gleam/option.{None, Some}
+import gleam/string
 import node_socket_client.{CloseEvent, DataEvent, ErrorEvent, ReadyEvent}
+import protocol.{string_to_hex}
 
 /// Callback type for handling received data
 pub type DataCallback =
@@ -10,6 +13,7 @@ pub type DataCallback =
 pub type ConnectionState {
   ConnectionState(
     connected: Bool,
+    ready: Bool,
     received_data: List(String),
     error: option.Option(String),
     should_close: Bool,
@@ -198,6 +202,7 @@ pub fn connect_with_callback(
   let initial_state =
     ConnectionState(
       connected: False,
+      ready: False,
       received_data: [],
       error: None,
       should_close: False,
@@ -213,12 +218,25 @@ pub fn connect_with_callback(
         let timestamp = get_timestamp()
         case event {
           ReadyEvent -> {
-            io.println("[Connection " <> timestamp <> "] Socket ready")
+            io.println(
+              "[Connection "
+              <> timestamp
+              <> "] Socket ready - sending handshake",
+            )
             ConnectionState(..state, connected: True)
           }
           DataEvent(data) -> {
             io.println(
-              "[Connection " <> timestamp <> "] Received data: " <> data,
+              "[Connection "
+              <> timestamp
+              <> "] Received raw data (hex): "
+              <> string_to_hex(data),
+            )
+            io.println(
+              "[Connection "
+              <> timestamp
+              <> "] Received data (string): "
+              <> data,
             )
             let new_data = [data, ..state.received_data]
 
@@ -307,6 +325,96 @@ pub fn receive(conn: Connection) -> Result(String, ConnectionError) {
 }
 
 /// Close connection gracefully
+/// Check if connection is ready to send API requests
+/// Connection is ready only after nextValidId event is received
+/// This prevents sending requests before TWS is ready to accept them
+pub fn is_ready(conn: Connection) -> Bool {
+  conn.state.ready
+}
+
+/// Set connection ready state
+/// This should be called when nextValidId event is received
+pub fn set_ready(conn: Connection, ready: Bool) -> Connection {
+  let new_state = ConnectionState(..conn.state, ready: ready)
+  Connection(socket: conn.socket, state: new_state)
+}
+
+/// Wait for connection to be ready
+/// This blocks until the nextValidId event is received
+/// Returns True when ready, False if connection is closed
+pub fn wait_for_ready(conn: Connection, timeout_ms: Int) -> Bool {
+  let start = get_timestamp()
+  let max_checks = timeout_ms / 100
+  // Check every 100ms
+
+  let result = wait_for_ready_loop(conn, max_checks, 0)
+  result
+}
+
+/// Internal loop for waiting for ready state
+fn wait_for_ready_loop(conn: Connection, max_checks: Int, current: Int) -> Bool {
+  case current >= max_checks {
+    True -> False
+    // Timeout
+    False -> {
+      case conn.state.ready {
+        True -> True
+        // Ready!
+        False -> {
+          sleep(100)
+          // Wait 100ms
+          wait_for_ready_loop(conn, max_checks, current + 1)
+        }
+      }
+    }
+  }
+}
+
+/// Send message only when connection is ready
+/// Returns error if connection is not ready
+/// This prevents sending API requests before TWS is ready to accept them
+pub fn send_when_ready(
+  conn: Connection,
+  data: String,
+) -> Result(Nil, ConnectionError) {
+  case conn.state.ready {
+    True -> {
+      io.println("[Connection] Connection is ready, sending message")
+      send(conn, data)
+    }
+    False -> {
+      io.println(
+        "[Connection] ERROR: Connection not ready - cannot send message",
+      )
+      Error(ConnectionFailed(
+        "Connection not ready - wait for nextValidId event",
+      ))
+    }
+  }
+}
+
+/// Send binary message only when connection is ready
+/// Returns error if connection is not ready
+pub fn send_bytes_when_ready(
+  conn: Connection,
+  data: BitArray,
+) -> Result(Nil, ConnectionError) {
+  case conn.state.ready {
+    True -> {
+      io.println("[Connection] Connection is ready, sending binary message")
+      send_bytes(conn, data)
+    }
+    False -> {
+      io.println(
+        "[Connection] ERROR: Connection not ready - cannot send message",
+      )
+      Error(ConnectionFailed(
+        "Connection not ready - wait for nextValidId event",
+      ))
+    }
+  }
+}
+
 pub fn close(conn: Connection) -> Result(Nil, ConnectionError) {
   //! I have commented this out because I don't want AI's code to 
   //! close the connection stupidly without my control.

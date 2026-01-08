@@ -71,14 +71,16 @@ pub fn main() {
 
       // Step 1: Send START_API handshake
       io.println("📤 [STEP 1] Sending START_API handshake...")
-      let handshake = protocol.start_api_message(100, 200)
+      let handshake = message_encoder.start_api_message(conn_config.client_id)
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake)
       io.println(
         "   Handshake size: "
-        <> int.to_string(bit_array.byte_size(handshake))
+        <> int.to_string(bit_array.byte_size(handshake_bytes))
         <> " bytes",
       )
 
-      case connection.send_bytes(conn, handshake) {
+      case connection.send_bytes(conn, handshake_bytes) {
         Ok(_) -> {
           io.println("✅ Handshake sent successfully")
           io.println("")
@@ -120,39 +122,45 @@ pub fn main() {
                   "All",
                   "$LEDGER:ALL",
                 )
+              let account_summary_bytes =
+                message_encoder.add_length_prefix_to_string(account_summary_msg)
               io.println(
                 "   Request size: "
-                <> int.to_string(bit_array.byte_size(account_summary_msg))
+                <> int.to_string(bit_array.byte_size(account_summary_bytes))
                 <> " bytes",
               )
 
-              case connection.send_bytes(conn, account_summary_msg) {
+              case connection.send_bytes(conn, account_summary_bytes) {
                 Ok(_) -> {
                   io.println("✅ Account summary request sent")
                   io.println("")
 
                   io.println("📤 [STEP 5] Requesting positions...")
                   let positions_msg = message_encoder.request_positions(9002)
+                  let positions_bytes =
+                    message_encoder.add_length_prefix_to_string(positions_msg)
                   io.println(
                     "   Request size: "
-                    <> int.to_string(bit_array.byte_size(positions_msg))
+                    <> int.to_string(bit_array.byte_size(positions_bytes))
                     <> " bytes",
                   )
 
-                  case connection.send_bytes(conn, positions_msg) {
+                  case connection.send_bytes(conn, positions_bytes) {
                     Ok(_) -> {
                       io.println("✅ Positions request sent")
                       io.println("")
 
                       io.println("📤 [STEP 6] Requesting open orders...")
                       let orders_msg = message_encoder.request_open_orders()
+                      let orders_bytes =
+                        message_encoder.add_length_prefix_to_string(orders_msg)
                       io.println(
                         "   Request size: "
-                        <> int.to_string(bit_array.byte_size(orders_msg))
+                        <> int.to_string(bit_array.byte_size(orders_bytes))
                         <> " bytes",
                       )
 
-                      case connection.send_bytes(conn, orders_msg) {
+                      case connection.send_bytes(conn, orders_bytes) {
                         Ok(_) -> {
                           io.println("✅ Open orders request sent")
                           io.println("")

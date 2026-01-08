@@ -1,3 +1,4 @@
+import account_data
 import connection
 import gleam/bit_array
 import gleam/int
@@ -8,8 +9,8 @@ import gleam/string
 import message_encoder
 import protocol
 
-/// Comprehensive test that connects, handshakes, sends client ID, and requests account data
-/// This will answer the game questions about positions, funds, and orders
+/// Comprehensive test that connects, handshakes, and requests account data
+/// This will answer game questions about positions, funds, and orders
 pub fn main() {
   io.println("\n=== ACCOUNT DATA TEST ===")
   io.println("Connects to IB TWS API and requests account information")
@@ -22,9 +23,6 @@ pub fn main() {
 
   // Create connection configuration
   let conn_config = connection.config("127.0.0.1", 7497, client_id)
-
-  // Track if handshake is complete
-  let handshake_complete = io.println("")
 
   // Connect with callback to handle async events
   case
@@ -84,9 +82,13 @@ pub fn main() {
 
       // Send START_API handshake message
       io.println("📤 Sending handshake message...")
-      let handshake = protocol.start_api_message(100, 200)
+      let handshake = message_encoder.start_api_message(conn_config.client_id)
 
-      case connection.send_bytes(conn, handshake) {
+      // Add length prefix and convert to bytes
+      let handshake_bytes =
+        message_encoder.add_length_prefix_to_string(handshake)
+
+      case connection.send_bytes(conn, handshake_bytes) {
         Ok(_) -> {
           io.println("✅ Handshake sent successfully")
           io.println("")
@@ -96,33 +98,32 @@ pub fn main() {
           // Wait for server to respond via callback
           connection.sleep(3000)
 
-          // Send client ID as separate message after server response
-          io.println("📤 Sending client ID message...")
-          let client_id_msg = protocol.client_id_message(conn_config.client_id)
-          case connection.send_bytes(conn, client_id_msg) {
-            Ok(_) -> {
-              io.println(
-                "✅ Client ID sent: " <> int.to_string(conn_config.client_id),
-              )
-              io.println("")
-              io.println("=== CONNECTION ESTABLISHED ===")
-              io.println("✅ TCP connection: SUCCESS")
-              io.println("✅ API Handshake: SUCCESS")
-              io.println("✅ Client ID: SUCCESS")
-              io.println("")
-              io.println("Now ready to request account data...")
+          // Wait for nextValidId event (connection ready signal)
+          io.println(
+            "⏳ Waiting for nextValidId event (connection ready signal)...",
+          )
+          io.println("⏳ This indicates TWS is ready to accept API requests")
+          io.println("")
+
+          // Wait for connection to be ready
+          case connection.wait_for_ready(conn, 10_000) {
+            True -> {
+              io.println("✅ Connection is READY to accept API requests!")
               io.println("")
 
-              // Wait a bit more for connection to stabilize
-              connection.sleep(2000)
-
-              // Request account data
+              // Now we can send API requests
               io.println("📤 Requesting account summary...")
-              let account_summary_payload =
-                message_encoder.request_account_summary(1, "All", "$LEDGER:ALL")
               let account_summary_msg =
-                message_encoder.encode_message(6, account_summary_payload)
-              case connection.send_bytes(conn, account_summary_msg) {
+                account_data.request_account_summary(
+                  1,
+                  "All",
+                  account_data.common_account_tags(),
+                )
+
+              // Add length prefix and convert to bytes
+              let account_summary_bytes =
+                message_encoder.add_length_prefix_to_string(account_summary_msg)
+              case connection.send_bytes(conn, account_summary_bytes) {
                 Ok(_) -> io.println("✅ Account summary request sent")
                 Error(_) ->
                   io.println("❌ Failed to send account summary request")
@@ -130,10 +131,12 @@ pub fn main() {
 
               io.println("")
               io.println("📤 Requesting positions...")
-              let positions_payload = message_encoder.request_positions(1)
-              let positions_msg =
-                message_encoder.encode_message(7, positions_payload)
-              case connection.send_bytes(conn, positions_msg) {
+              let positions_msg = account_data.request_positions(1)
+
+              // Add length prefix and convert to bytes
+              let positions_bytes =
+                message_encoder.add_length_prefix_to_string(positions_msg)
+              case connection.send_bytes(conn, positions_bytes) {
                 Ok(_) -> io.println("✅ Positions request sent")
                 Error(_) -> io.println("❌ Failed to send positions request")
               }
@@ -141,9 +144,11 @@ pub fn main() {
               io.println("")
               io.println("📤 Requesting open orders...")
               let open_orders_msg = message_encoder.request_open_orders()
-              let open_orders_msg_with_id =
-                message_encoder.encode_message(9, open_orders_msg)
-              case connection.send_bytes(conn, open_orders_msg_with_id) {
+
+              // Add length prefix and convert to bytes
+              let open_orders_bytes =
+                message_encoder.add_length_prefix_to_string(open_orders_msg)
+              case connection.send_bytes(conn, open_orders_bytes) {
                 Ok(_) -> io.println("✅ Open orders request sent")
                 Error(_) -> io.println("❌ Failed to send open orders request")
               }
@@ -159,15 +164,12 @@ pub fn main() {
               // Keep connection open
               connection.sleep(1_000_000_000)
             }
-            Error(err) -> {
-              let error_msg = case err {
-                connection.SocketError(msg) -> msg
-                connection.ConnectionFailed(msg) -> msg
-                connection.InvalidHost -> "Invalid host"
-                connection.InvalidPort -> "Invalid port"
-                connection.Timeout -> "Connection timeout"
-              }
-              io.println("❌ Failed to send client ID: " <> error_msg)
+            False -> {
+              io.println("❌ Timeout: Connection not ready after 10 seconds")
+              io.println(
+                "❌ This usually means nextValidId event was not received",
+              )
+              io.println("❌ Check TWS settings and ensure API is enabled")
             }
           }
         }
