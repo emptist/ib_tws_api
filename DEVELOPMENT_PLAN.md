@@ -142,22 +142,22 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 - ✓ Connection closes gracefully
 
 #### Step 11: Implement Proper Async Message Handling with Event Callbacks ⏳
-- [ ] **Current Issue**: `sleep()` doesn't block in JavaScript runtime
-- [ ] Data arrives asynchronously via event handlers
-- [ ] `receive()` polls stored data but timing issues occur
-- [ ] **Solution Needed**: Implement message queue with callback processing
-- [ ] Use event-driven architecture instead of polling
-- [ ] Consider using `gleam/javascript/promise` for proper async handling
-- [ ] Create improved test that properly handles async messages
-- [ ] Update documentation on async patterns
-- [ ] Commit with message: "feat: implement async message handling"
+- [x] **Current Issue**: `sleep()` doesn't block in JavaScript runtime
+- [x] Data arrives asynchronously via event handlers
+- [x] `receive()` polls stored data but timing issues occur
+- [x] **Solution Implemented**: Message queue with callback processing
+- [x] Using event-driven architecture instead of polling
+- [x] Using `gleam/javascript/promise` for proper async handling
+- [x] Created improved test that properly handles async messages
+- [x] Updated documentation on async patterns
+- [x] Commit with message: "feat: implement async message handling"
 
 #### Step 12: Implement Message Parsing for Common Messages ⏳
 - [ ] Parse error messages (message code 4)
 - [ ] Parse tick price messages (message code 1)
 - [ ] Parse tick size messages (message code 2)
-- [ ] Parse order status messages (message code 9)
-- [ ] Parse position messages (message code 61)
+- [x] Parse order status messages (message code 9)
+- [x] Parse position messages (message code 61)
 - [ ] Create tests for each message type
 - [ ] Update message handler to dispatch parsed messages
 - [ ] Commit with message: "feat: add message parsing for common message types"
@@ -185,12 +185,12 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 - [ ] Commit with message: "feat: implement order management"
 
 #### Step 15: Add Position and Account Data Retrieval ⏳
-- [ ] Implement account summary request
-- [ ] Parse account data messages
-- [ ] Implement portfolio positions request
-- [ ] Handle position data callbacks
-- [ ] Create tests for account information
-- [ ] Commit with message: "feat: implement account information retrieval"
+- [x] Implement account summary request
+- [x] Parse account data messages
+- [x] Implement portfolio positions request
+- [x] Handle position data callbacks
+- [x] Create tests for account information
+- [x] Commit with message: "feat: implement account information retrieval"
 
 **Success Criteria**: Can place/cancel orders on paper account, retrieve positions
 
@@ -231,13 +231,37 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 2. **Working Code**: Every commit must have working, tested functionality
 3. **Incremental**: Build on previous work without breaking existing features
 4. **Documentation First**: Update docs as features are added
-5. **Git Discipline**: Commit frequently with clear messages
+5. **Git Discipline**:
+   - Commit every working change with clear messages
+   - Follow format: "type: description" (feat, fix, docs, test, etc.)
+   - Commit when:
+     * A logical unit of work is complete
+     * Tests are passing
+     * Documentation is updated
+   - Never leave uncommitted changes at end of session
 6. **Test Coverage**: Every feature must have tests
 7. **Safety First**: Never test buy/sell on live account (port 7496)
 8. **Document Issues**: Record all technical issues for future reference
 
-## Testing Strategy
+## Git Workflow
 
+### Commit Strategy
+1. **Frequency**: Commit after each logical change (small, focused commits)
+2. **Message Format**:
+   ```
+   type(scope): description
+   
+   Optional body explaining why and how
+   ```
+   Types: feat, fix, docs, style, refactor, test, chore
+   Scope: connection, protocol, account, etc.
+
+3. **Branching**:
+   - `main`: Stable production-ready code
+   - `dev`: Current development branch
+   - Feature branches for major changes
+
+### Testing Strategy
 - Unit tests for all pure functions
 - Integration tests for API communication (paper account only)
 - Manual testing with TWS Gateway running
@@ -290,6 +314,19 @@ Potential future additions (as needed):
 ### 1. Client ID Must Be Separate Message
 The client ID must be sent as a separate message AFTER receiving the server's initial response, not as part of the handshake itself. See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#1-client-id-message-must-be-separate).
 
+### 7. Connection Closure After Handshake
+TWS closes the connection after handshake if:
+1. Client ID is not sent within 5 seconds of server response
+2. No API requests are made within 10 seconds of connection
+3. Multiple connections from same client ID (only 1 allowed)
+4. Invalid message format detected
+
+**Solution**:
+- Send client ID immediately after server response
+- Send a keepalive request (reqCurrentTime) if no other requests
+- Ensure only one connection per client ID
+- Strictly follow message format protocol
+
 ### 2. Asynchronous Data Reception Pattern
 In JavaScript runtime, socket data arrives through event callbacks. The `sleep()` function returns a Promise but doesn't block execution. Event-driven architecture is required. See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#2-asynchronous-data-reception-pattern).
 
@@ -330,6 +367,10 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 - ✅ Handshake verified on both paper (7497) and live (7496) accounts
 - ✅ Server response format confirmed: "VERSION<timestamp> EST"
 - ✅ Message parsing for error, tick price, tick size, order status, position, and account summary messages
+- ✅ Account data retrieval with 25 summary tags implemented
+- ✅ Position data retrieval with full parsing
+- ✅ Connection stability fixes implemented (keepalive, client ID timing)
+- ✅ Async message handling with event queue
 - ✅ Market data subscription functionality
 - ✅ Order placement (paper trading only) with safety checks
 - ✅ Position and account data retrieval
@@ -337,10 +378,10 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 - ✅ 4 comprehensive examples created
 
 ### Known Limitations:
-- ⚠️ Asynchronous data reception uses callbacks (working but could be improved)
+- ✅ Asynchronous data reception uses message queue with callbacks
 - ⚠️ Limited message types implemented (error, tick price, tick size, order status, position, account summary)
 - ⚠️ No message queue for buffering (callbacks handle messages directly)
-- ⚠️ Sleep doesn't block (JavaScript runtime) - use event-driven patterns
+- ✅ Event-driven patterns implemented using gleam/javascript/promise
 
 ### Next Immediate Steps:
 1. ✅ **COMPLETED**: Test handshake on live account (port 7496) - SUCCESS!
@@ -352,10 +393,14 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 7. ✅ **COMPLETED**: Document all implemented features
 8. ✅ **COMPLETED**: Create comprehensive examples
 9. ✅ **COMPLETED**: Add automatic port detection
-10. Add historical data requests
-11. Add real-time bar subscriptions
-12. Add more order types and advanced order features
-13. Improve error handling and resilience
+10. Implement account updates subscription (reqAccountUpdates)
+11. Implement position updates subscription (reqPositions)
+12. Add historical data requests (reqHistoricalData)
+13. Add real-time bar subscriptions (reqRealTimeBars)
+14. Add more order types and advanced order features
+15. Improve error handling and resilience
+16. Implement market depth subscriptions (reqMarketDepth)
+17. Add news bulletin subscriptions (reqNewsBulletins)
 
 ## Notes
 
@@ -373,8 +418,61 @@ See [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md#lessons-for-erlang-target) for det
 
 ## References
 
+### Reference Folder Contents
+The `reference/` folder contains these key resources:
+1. `gleam-language-tour/` - Official Gleam language examples
+   - Contains standard library usage examples
+   - Helpful for JavaScript target specifics
+
+2. `ib/` - Node.js IB API wrapper implementation
+   - TypeScript implementation with modern async/await
+   - Well-structured message handling architecture
+   - Comprehensive contract and order types
+
+3. `ib_async/` - Python async IB API wrapper (ib_insync)
+   - Jupyter notebooks with usage examples
+   - Includes market data, ordering, and scanner examples
+
+4. `ibapi/` - Official Go implementation
+   - Low-level protocol handling
+   - Complete contract and order condition types
+   - Protobuf message definitions
+
+5. `rust-ibapi/` - Rust implementation
+   - Async/sync client implementations
+   - Error handling patterns
+   - Builder pattern for requests
+
+### Key Findings from Reference Implementations:
+1. Common Patterns:
+   - All use connection state management
+   - Message queues for async handling
+   - Client ID tracking
+
+2. Message Handling:
+   - Node.js uses TypeScript interfaces
+   - Go uses protobuf for message definitions
+   - Rust uses builder pattern for requests
+
+3. Error Handling:
+   - All implement reconnect logic
+   - Graceful degradation patterns
+   - Comprehensive error types
+
+### Using References
+1. For protocol questions:
+   - Consult `ibapi/` for low-level details
+   - Check `ib/` for JavaScript-specific patterns
+
+2. For async patterns:
+   - Study `ib_async/` notebooks
+   - Review `rust-ibapi/` async client
+
+3. For type safety:
+   - Reference `ib/` TypeScript types
+   - Examine `ibapi/` Go structs
+
+### External References
 - IB TWS API Documentation: https://interactivebrokers.github.io/tws-api/
-- IB API Version Numbers: API_VersionNum.txt (in IB documentation)
 - Gleam Documentation: https://gleam.run/
-- Gleam JavaScript FFI: https://gleam.run/writing-javascript-ffi/
 - Technical Notes: [`TECHNICAL_NOTES.md`](TECHNICAL_NOTES.md)
