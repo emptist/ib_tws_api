@@ -1,0 +1,4 @@
+**IMPORTANT**: (so I the human developer have saved the following in a file named dev_game.md) 
+
+Now let me give you all the game questions at one run that you can try to answer one by one: 
+- 1) which accounts do we have 2) how about the positions and funds available of each of the accounts? 3) do we have open orders in those accounts one by one? 4) select one account, send a sell 100 order in case there are stock positions 5) select one account, send a buy 100 order of SLV at current bid or ask price. Note: send orders with param that allowing out of market time orders and available until get bought or sold. 6) try to cancel one of the sent but pending orders. 7) all of above questions and answers should be well logged for investegate to find issues to solve.  By playing this game and win, you will find bugs and problems in the current implements.Have fun!
