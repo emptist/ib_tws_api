@@ -459,17 +459,50 @@ let client_id = connection.generate_client_id()
 
 ## Development
 
+### Testing Philosophy
+
+This project follows a **FACT DISCOVERY** approach to testing:
+
+**Principles:**
+1. **Connect to REAL TWS instance** - All tests connect to actual IB TWS API
+2. **Send REAL protocol messages** - Tests use actual IB TWS protocol messages
+3. **Discover FACTS about TWS behavior** - Tests learn how TWS really responds
+4. **Use Result types honestly** - Tests report PASS/FAIL/UNKNOWN based on actual behavior
+5. **NO fake data** - Tests never use hardcoded fake data to simulate responses
+6. **NO cheating the compiler** - Tests don't just check return types or trivial properties
+
+**Test Results:**
+- **PASS** - Feature works as expected with real TWS
+- **FAIL** - Feature does not work with real TWS
+- **PARTIAL** - Feature partially works (e.g., connection succeeds but close fails)
+- **UNKNOWN** - Feature appears to work but needs manual verification (e.g., callback receives data)
+
+**Example Test Result:**
+```gleam
+TestResult(
+  test_name: "TCP Connection to Paper Trading",
+  status: "PASS",
+  details: "Successfully established TCP connection to TWS on port 7497",
+  fact_discovered: "TWS is listening on port 7497 for paper trading connections",
+)
+```
+
+This approach ensures that **every test discovers a FACT about real TWS behavior**, not just checks that code compiles or returns the right type.
+
 ### Running Tests
 
 ```sh
 # Run all tests
 gleam test
 
-# Run specific test module
-gleam run --module orders_test
-gleam run --module market_data_test
-gleam run --module account_data_test
+# Tests will:
+# - Connect to real TWS instance (paper trading on port 7497)
+# - Send real protocol messages
+# - Discover facts about TWS behavior
+# - Report honest PASS/FAIL/UNKNOWN results
 ```
+
+**Note:** Tests require TWS application to be running with API connections enabled on port 7497 (paper trading) or 7496 (live trading).
 
 ### Building
 

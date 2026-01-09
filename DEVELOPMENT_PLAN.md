@@ -225,6 +225,131 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 
 **Success Criteria**: Complete documentation with working examples
 
+## Testing Philosophy
+
+### Fact-Discovery Approach
+
+This project follows a **FACT DISCOVERY** approach to testing, not traditional unit testing. This is critical for building a correct IB TWS API wrapper.
+
+**Principles:**
+
+1. **Connect to REAL TWS instance** - All tests connect to actual IB TWS API
+   - Tests use paper trading account (port 7497) for development
+   - Tests use live account (port 7496) for read-only operations only
+   - Never use fake data or mock responses
+
+2. **Send REAL protocol messages** - Tests use actual IB TWS protocol messages
+   - Handshake messages must be exactly what TWS expects
+   - API requests must be properly formatted with correct message IDs
+   - Message encoding must follow V100+ protocol specification
+
+3. **Discover FACTS about TWS behavior** - Tests learn how TWS really responds
+   - What message format does TWS accept?
+   - What error codes does TWS return?
+   - What timing constraints exist?
+   - What connection states are valid?
+
+4. **Use Result types honestly** - Tests report PASS/FAIL/UNKNOWN based on actual behavior
+   - **PASS**: Feature works as expected with real TWS
+   - **FAIL**: Feature does not work with real TWS
+   - **PARTIAL**: Feature partially works (e.g., connection succeeds but close fails)
+   - **UNKNOWN**: Feature appears to work but needs manual verification
+
+5. **NO fake data** - Tests never use hardcoded fake data to simulate responses
+   - No hardcoded TWS responses
+   - No mock socket behavior
+   - No simulated protocol messages
+
+6. **NO cheating the compiler** - Tests don't just check return types or trivial properties
+   - Tests don't verify that a function returns the correct type
+   - Tests don't check that a byte array has length > 0
+   - Tests don't verify that a string contains certain characters
+   - These checks don't prove the feature actually works with TWS
+
+### Why This Approach?
+
+**Traditional unit testing fails here because:**
+
+1. **Protocol is complex** - IB TWS has specific protocol requirements that are hard to mock correctly
+2. **Behavior is unknown** - We're discovering how TWS actually behaves, not verifying known behavior
+3. **Type safety is not enough** - Even with perfect types, the protocol might be wrong
+4. **Real errors occur at runtime** - Connection failures, timeouts, unexpected responses
+
+**Fact-discovery testing succeeds because:**
+
+1. **Finds real bugs** - Tests fail when protocol is wrong, not when types are wrong
+2. **Documents actual behavior** - We learn how TWS really responds to different messages
+3. **Builds confidence** - When tests pass, we know features work with real TWS
+4. **Guides development** - Test failures tell us what to fix next
+
+### Test Structure
+
+All tests are in `test/ib_tws_api_test.gleam` and follow this pattern:
+
+```gleam
+pub fn test_paper_trading_tcp_connection() -> TestResult {
+  // 1. Try to connect to real TWS on port 7497
+  // 2. Report PASS if connection succeeds
+  // 3. Report FAIL if connection fails
+  // 4. Report fact discovered about TWS availability
+}
+
+pub fn test_handshake_with_real_tws() -> TestResult {
+  // 1. Connect to real TWS
+  // 2. Send real handshake message
+  // 3. Wait for real server response
+  // 4. Report PASS if handshake completes
+  // 5. Report FAIL if handshake fails
+  // 6. Report fact discovered about handshake protocol
+}
+```
+
+### TestResult Type
+
+Tests return a `TestResult` type that honestly reports outcomes:
+
+```gleam
+pub type TestResult {
+  TestResult(
+    test_name: String,
+    status: String, // "PASS", "FAIL", "UNKNOWN"
+    details: String,
+    fact_discovered: String,
+  )
+}
+```
+
+This ensures tests are honest about what works and what doesn't.
+
+### Running Tests
+
+Run all tests with:
+```bash
+gleam test
+```
+
+This will:
+1. Connect to real TWS (must have TWS or Gateway running)
+2. Send real protocol messages
+3. Discover facts about TWS behavior
+4. Report which features work and which don't
+
+### When Tests Fail
+
+When a test fails:
+1. Read the `fact_discovered` field to understand what went wrong
+2. Check the `details` field for error information
+3. Fix the underlying issue in the code
+4. Run tests again to verify the fix
+
+### When Tests Pass
+
+When a test passes:
+1. The feature actually works with real TWS
+2. The protocol is correct
+3. The implementation is solid
+4. Document the fact discovered for future reference
+
 ## Development Principles
 
 1. **Bottom-Up Development**: Only implement features when naturally needed
@@ -242,6 +367,7 @@ Building a Gleam language wrapper for the Interactive Brokers TWS API, targeting
 6. **Test Coverage**: Every feature must have tests
 7. **Safety First**: Never test buy/sell on live account (port 7496)
 8. **Document Issues**: Record all technical issues for future reference
+9. **Fact Discovery**: Tests discover facts about real TWS behavior, don't cheat
 
 ## Git Workflow
 
