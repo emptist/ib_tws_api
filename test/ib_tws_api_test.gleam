@@ -35,7 +35,7 @@ pub fn main() {
 
 /// Test: Can we establish a TCP connection to TWS on port 7497?
 /// This is the most basic test - just a TCP socket connection
-pub fn test_paper_trading_tcp_connection() {
+pub fn paper_trading_tcp_connection_test() {
   io.println("\n=== TEST: TCP Connection to Paper Trading (Port 7497) ===")
 
   let client_id = connection.generate_client_id()
@@ -62,7 +62,7 @@ pub fn test_paper_trading_tcp_connection() {
 
 /// Test: Can we send handshake message and receive response?
 /// This tests the V100+ protocol handshake
-pub fn test_paper_trading_handshake() {
+pub fn paper_trading_handshake_test() {
   io.println("\n=== TEST: Handshake with Paper Trading ===")
 
   let client_id = connection.generate_client_id()
@@ -97,7 +97,7 @@ pub fn test_paper_trading_handshake() {
 
 /// Test: Can we send client ID after handshake?
 /// This tests the full handshake + client ID flow
-pub fn test_paper_trading_client_id() {
+pub fn paper_trading_client_id_test() {
   io.println("\n=== TEST: Send Client ID after Handshake ===")
 
   let client_id = connection.generate_client_id()
@@ -140,7 +140,7 @@ pub fn test_paper_trading_client_id() {
 
 /// Test: Can we request account data?
 /// This tests if we can send API requests after connection
-pub fn test_paper_trading_request_account_data() {
+pub fn paper_trading_request_account_data_test() {
   io.println("\n=== TEST: Request Account Data ===")
 
   let client_id = connection.generate_client_id()
@@ -204,7 +204,7 @@ pub fn test_paper_trading_request_account_data() {
 
 /// Test: Can we connect to live trading account in read-only mode?
 /// WARNING: This connects to LIVE TRADING account
-pub fn test_live_trading_readonly_connection() {
+pub fn live_trading_readonly_connection_test() {
   io.println("\n=== TEST: Live Trading Read-Only Connection ===")
   io.println("⚠️  WARNING: Connecting to LIVE TRADING account (Port 7496)")
   io.println("⚠️  Trading operations are BLOCKED (Read-Only mode)")
@@ -247,7 +247,7 @@ pub fn test_live_trading_readonly_connection() {
 // ═══════════════════════════════════════════════════════════════
 
 /// Test: Client ID generation
-pub fn test_client_id_generation() {
+pub fn client_id_generation_test() {
   io.println("\n=== TEST: Client ID Generation ===")
 
   let client_id1 = connection.generate_client_id()
@@ -270,7 +270,7 @@ pub fn test_client_id_generation() {
 }
 
 /// Test: Message encoding
-pub fn test_message_encoding() {
+pub fn message_encoding_test() {
   io.println("\n=== TEST: Message Encoding ===")
 
   // Test START_API message encoding
@@ -292,7 +292,7 @@ pub fn test_message_encoding() {
 }
 
 /// Test: Handshake version string
-pub fn test_handshake_version_string() {
+pub fn handshake_version_string_test() {
   io.println("\n=== TEST: Handshake Version String ===")
 
   let version1 = protocol.start_api_message(100, 200)
