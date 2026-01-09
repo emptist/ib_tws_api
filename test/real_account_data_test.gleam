@@ -92,10 +92,9 @@ pub fn main() {
 
       // Perform handshake
       io.println("🤝 Step 1: API Handshake...")
-      let handshake = message_encoder.start_api_message(config.client_id)
-      let handshake_bytes =
-        message_encoder.add_length_prefix_to_string(handshake)
-      let _ = connection.send_bytes(conn, handshake_bytes)
+      // Use V100+ protocol handshake: "API\0" + length + version
+      let handshake = protocol.start_api_message(100, 200)
+      let _ = connection.send_bytes(conn, handshake)
       connection.sleep(1000)
 
       io.println("🤝 Step 2: Sending Client ID...")
