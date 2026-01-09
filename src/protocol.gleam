@@ -81,28 +81,21 @@ pub fn start_api_message(min_version: Int, max_version: Int) -> BitArray {
   // 'A'=65, 'P'=80, 'I'=73, null=0
   let api_bytes = <<65:8, 80:8, 73:8, 0:8>>
 
-  // Debug: Log each component
-  io.println("[DEBUG] version_string: " <> version_string)
-  io.println("[DEBUG] version_length: " <> int.to_string(version_length))
-  io.println(
-    "[DEBUG] version_bytes size: "
-    <> int.to_string(bit_array.byte_size(version_bytes)),
-  )
-  io.println(
-    "[DEBUG] length_bytes size: "
-    <> int.to_string(bit_array.byte_size(length_bytes)),
-  )
-  io.println(
-    "[DEBUG] api_bytes size: " <> int.to_string(bit_array.byte_size(api_bytes)),
-  )
-
   // Combine: API\0 + length_bytes + version_string_bytes
-  let result = bit_array.concat([api_bytes, length_bytes, version_bytes])
-  io.println(
-    "[DEBUG] final message size: " <> int.to_string(bit_array.byte_size(result)),
-  )
+  // Note: Must be sent immediately after connection with no delay
+  bit_array.concat([api_bytes, length_bytes, version_bytes])
+}
 
-  result
+/// Create START_API message with proper length prefix for sending
+/// This wraps the handshake in the standard IB message format:
+/// 4-byte length + message payload
+pub fn start_api_message_with_length(
+  min_version: Int,
+  max_version: Int,
+) -> BitArray {
+  let message = start_api_message(min_version, max_version)
+  let length = bit_array.byte_size(message)
+  bit_array.concat([int_to_four_bytes_big_endian(length), message])
 }
 
 /// DEPRECATED: Use message_encoder.start_api_message_with_length() instead

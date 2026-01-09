@@ -9,16 +9,90 @@ import protocol.{string_to_hex}
 pub type DataCallback =
   fn(String) -> Nil
 
+/// Possible connection states
+pub type ConnectionStateType {
+  Disconnected
+  Connecting
+  Connected
+  HandshakeSent
+  Ready
+  Failed(String)
+  // Renamed from Error to avoid conflict
+  Closing
+  Closed
+}
+
 /// Connection state for event handling
 pub type ConnectionState {
   ConnectionState(
-    connected: Bool,
-    ready: Bool,
+    current_state: ConnectionStateType,
+    previous_state: ConnectionStateType,
     received_data: List(String),
     error: option.Option(String),
-    should_close: Bool,
     on_data_callback: option.Option(DataCallback),
+    last_transition_time: String,
+    handshake_version: option.Option(Int),
+    server_version: option.Option(Int),
   )
+}
+
+/// Transition to a new state
+fn transition_state(
+  state: ConnectionState,
+  new_state: ConnectionStateType,
+) -> ConnectionState {
+  ConnectionState(
+    current_state: new_state,
+    previous_state: state.current_state,
+    received_data: state.received_data,
+    error: state.error,
+    on_data_callback: state.on_data_callback,
+    last_transition_time: get_timestamp(),
+    handshake_version: state.handshake_version,
+    server_version: state.server_version,
+  )
+}
+
+/// Validate if a transition is allowed
+fn is_valid_transition(
+  from: ConnectionStateType,
+  to: ConnectionStateType,
+) -> Bool {
+  case from, to {
+    Disconnected, Connecting -> True
+    Connecting, Connected -> True
+    Connecting, Failed(_) -> True
+    Connected, HandshakeSent -> True
+    Connected, Failed(_) -> True
+    HandshakeSent, Ready -> True
+    HandshakeSent, Failed(_) -> True
+    Ready, Closing -> True
+    Ready, Failed(_) -> True
+    Closing, Closed -> True
+    Failed(_), Closed -> True
+    _, _ -> False
+  }
+}
+
+/// Helper to convert ConnectionError to string for logging
+fn connection_error_to_string(error: ConnectionError) -> String {
+  case error {
+    ConnectionFailed(msg) -> msg
+    InvalidHost -> "Invalid host"
+    InvalidPort -> "Invalid port"
+    SocketError(msg) -> msg
+    Timeout -> "Connection timeout"
+  }
+}
+
+/// Helper to create Result with ConnectionFailed error
+fn connection_failed_result(msg: String) -> Result(a, ConnectionError) {
+  Error(ConnectionFailed(msg))
+}
+
+/// Helper to create Result with SocketError
+fn socket_error_result(msg: String) -> Result(a, ConnectionError) {
+  Error(SocketError(msg))
 }
 
 /// Connection type - opaque to hide implementation details
@@ -158,10 +232,10 @@ pub fn config_auto_detect(
   host: String,
   client_id: Int,
   timeout: Int,
-) -> Result(ConnectionConfig, String) {
+) -> Result(ConnectionConfig, ConnectionError) {
   let detected_port = detect_ib_tws_port(host, timeout)
   case detected_port {
-    0 -> Error("No IB TWS server detected on ports 7496 or 7497")
+    0 -> connection_failed_result("No IB TWS server detected")
     7496 ->
       Ok(ConnectionConfig(
         host: host,
@@ -201,12 +275,14 @@ pub fn connect_with_callback(
 ) -> Result(Connection, ConnectionError) {
   let initial_state =
     ConnectionState(
-      connected: False,
-      ready: False,
+      current_state: Disconnected,
+      previous_state: Disconnected,
       received_data: [],
       error: None,
-      should_close: False,
       on_data_callback: callback,
+      last_transition_time: get_timestamp(),
+      handshake_version: None,
+      server_version: None,
     )
 
   let socket =
@@ -214,16 +290,40 @@ pub fn connect_with_callback(
       config.host,
       config.port,
       initial_state,
-      fn(state, _socket, event) {
+      fn(state, socket, event) {
         let timestamp = get_timestamp()
         case event {
           ReadyEvent -> {
             io.println(
               "[Connection "
               <> timestamp
-              <> "] Socket ready - sending handshake",
+              <> "] Socket ready - transitioning to Connected state",
             )
-            ConnectionState(..state, connected: True)
+            let new_state = transition_state(state, Connected)
+
+            // Send properly formatted handshake immediately
+            let handshake = protocol.start_api_message_with_length(100, 200)
+            let success = send_bytes_external(socket, handshake)
+            case success {
+              True -> {
+                io.println(
+                  "[Connection " <> timestamp <> "] Handshake sent successfully",
+                )
+                let handshake_state = transition_state(new_state, HandshakeSent)
+                handshake_state
+              }
+              False -> {
+                io.println(
+                  "[Connection "
+                  <> timestamp
+                  <> "] ERROR: Failed to send handshake - SocketError",
+                )
+                transition_state(
+                  new_state,
+                  Failed("Failed to send handshake: SocketError"),
+                )
+              }
+            }
           }
           DataEvent(data) -> {
             io.println(
@@ -244,6 +344,7 @@ pub fn connect_with_callback(
             case state.on_data_callback {
               Some(callback) -> {
                 callback(data)
+                // Update state but keep current state intact
                 ConnectionState(..state, received_data: new_data)
               }
               None -> ConnectionState(..state, received_data: new_data)
@@ -255,7 +356,7 @@ pub fn connect_with_callback(
           }
           CloseEvent(_) -> {
             io.println("[Connection " <> timestamp <> "] Connection closed.")
-            ConnectionState(..state, connected: False)
+            ConnectionState(..state, current_state: Closed)
           }
           _other_event -> {
             // Ignore other events for now
@@ -265,7 +366,10 @@ pub fn connect_with_callback(
       },
     )
 
-  Ok(Connection(socket: socket, state: initial_state))
+  // Create connection with initial state
+  // The socket client will update the state through the callback
+  let conn = Connection(socket: socket, state: initial_state)
+  Ok(conn)
 }
 
 /// Register a callback to be called when data is received
@@ -288,12 +392,21 @@ pub fn on_data(
 
 /// Send raw data through the connection
 pub fn send(conn: Connection, data: String) -> Result(Nil, ConnectionError) {
-  let success = node_socket_client.write(conn.socket, data)
-  case success {
-    True -> Ok(Nil)
-    False -> Error(SocketError("Failed to write to socket"))
+  case is_connected(conn) {
+    True -> {
+      let success = node_socket_client.write(conn.socket, data)
+      case success {
+        True -> Ok(Nil)
+        False -> socket_error_result("Failed to write to socket")
+      }
+    }
+    False -> connection_failed_result("Not connected")
   }
 }
+
+/// Get the current state from socket (dynamic, updates via callbacks)
+@external(javascript, "./connection_ffi.mjs", "get_socket_current_state")
+fn get_socket_state(socket: node_socket_client.SocketClient) -> ConnectionState
 
 /// Send raw binary data through the connection
 /// Takes a BitArray and sends it as raw bytes without string conversion
@@ -308,42 +421,99 @@ pub fn send_bytes(
   conn: Connection,
   data: BitArray,
 ) -> Result(Nil, ConnectionError) {
-  let success = send_bytes_external(conn.socket, data)
-  case success {
-    True -> Ok(Nil)
-    False -> Error(SocketError("Failed to write bytes to socket"))
+  case is_connected(conn) {
+    True -> {
+      let success = send_bytes_external(conn.socket, data)
+      case success {
+        True -> Ok(Nil)
+        False -> socket_error_result("Failed to write bytes to socket")
+      }
+    }
+    False -> connection_failed_result("Not connected")
   }
 }
 
 /// Receive raw data from connection
 /// Returns the most recent data received
 pub fn receive(conn: Connection) -> Result(String, ConnectionError) {
-  case conn.state.received_data {
-    [] -> Error(ConnectionFailed("No data received yet"))
-    [first, ..] -> Ok(first)
+  case is_connected(conn) {
+    True -> {
+      case conn.state.received_data {
+        [] -> connection_failed_result("No data received yet")
+        [first, ..] -> Ok(first)
+      }
+    }
+    False -> connection_failed_result("Not connected")
   }
 }
 
 /// Close connection gracefully
 /// Check if connection is ready to send API requests
-/// Connection is ready only after nextValidId event is received
-/// This prevents sending requests before TWS is ready to accept them
+/// Connection is ready only in Ready state
 pub fn is_ready(conn: Connection) -> Bool {
-  conn.state.ready
+  let current_state = get_socket_state(conn.socket)
+  case current_state.current_state {
+    Ready -> True
+    _ -> False
+  }
 }
 
-/// Set connection ready state
-/// This should be called when nextValidId event is received
-pub fn set_ready(conn: Connection, ready: Bool) -> Connection {
-  let new_state = ConnectionState(..conn.state, ready: ready)
-  Connection(socket: conn.socket, state: new_state)
+/// Transition to Ready state when nextValidId is received
+pub fn set_ready(conn: Connection) -> Result(Connection, ConnectionError) {
+  case is_valid_transition(conn.state.current_state, Ready) {
+    True -> {
+      let new_state = transition_state(conn.state, Ready)
+      Ok(Connection(socket: conn.socket, state: new_state))
+    }
+    False -> {
+      connection_failed_result(
+        "Invalid state transition to Ready from "
+        <> state_to_string(conn.state.current_state),
+      )
+    }
+  }
+}
+
+/// Convert state to string for debugging
+pub fn state_to_string(state: ConnectionStateType) -> String {
+  case state {
+    Disconnected -> "Disconnected"
+    Connecting -> "Connecting"
+    Connected -> "Connected"
+    HandshakeSent -> "HandshakeSent"
+    Ready -> "Ready"
+    Failed(msg) -> "Failed(" <> msg <> ")"
+    Closing -> "Closing"
+    Closed -> "Closed"
+  }
+}
+
+/// Check if connection is connected (not including ready state)
+pub fn is_connected(conn: Connection) -> Bool {
+  let current_state = get_socket_state(conn.socket)
+  case current_state.current_state {
+    Connected | HandshakeSent | Ready -> True
+    _ -> False
+  }
+}
+
+/// Get current connection state
+pub fn get_state(conn: Connection) -> ConnectionStateType {
+  let current_state = get_socket_state(conn.socket)
+  current_state.current_state
+}
+
+/// Get previous connection state
+pub fn get_previous_state(conn: Connection) -> ConnectionStateType {
+  let current_state = get_socket_state(conn.socket)
+  current_state.previous_state
 }
 
 /// Wait for connection to be ready
 /// This blocks until the nextValidId event is received
 /// Returns True when ready, False if connection is closed
 pub fn wait_for_ready(conn: Connection, timeout_ms: Int) -> Bool {
-  let start = get_timestamp()
+  let _start = get_timestamp()
   let max_checks = timeout_ms / 100
   // Check every 100ms
 
@@ -357,10 +527,11 @@ fn wait_for_ready_loop(conn: Connection, max_checks: Int, current: Int) -> Bool 
     True -> False
     // Timeout
     False -> {
-      case conn.state.ready {
-        True -> True
+      let current_state = get_socket_state(conn.socket)
+      case current_state.current_state {
+        Ready -> True
         // Ready!
-        False -> {
+        _ -> {
           sleep(100)
           // Wait 100ms
           wait_for_ready_loop(conn, max_checks, current + 1)
@@ -377,18 +548,13 @@ pub fn send_when_ready(
   conn: Connection,
   data: String,
 ) -> Result(Nil, ConnectionError) {
-  case conn.state.ready {
-    True -> {
-      io.println("[Connection] Connection is ready, sending message")
-      send(conn, data)
-    }
+  case is_ready(conn) {
+    True -> send(conn, data)
     False -> {
-      io.println(
-        "[Connection] ERROR: Connection not ready - cannot send message",
+      connection_failed_result(
+        "Connection not ready - current state: "
+        <> state_to_string(conn.state.current_state),
       )
-      Error(ConnectionFailed(
-        "Connection not ready - wait for nextValidId event",
-      ))
     }
   }
 }
@@ -399,27 +565,24 @@ pub fn send_bytes_when_ready(
   conn: Connection,
   data: BitArray,
 ) -> Result(Nil, ConnectionError) {
-  case conn.state.ready {
-    True -> {
-      io.println("[Connection] Connection is ready, sending binary message")
-      send_bytes(conn, data)
-    }
+  case is_ready(conn) {
+    True -> send_bytes(conn, data)
     False -> {
-      io.println(
-        "[Connection] ERROR: Connection not ready - cannot send message",
+      connection_failed_result(
+        "Connection not ready - current state: "
+        <> state_to_string(conn.state.current_state),
       )
-      Error(ConnectionFailed(
-        "Connection not ready - wait for nextValidId event",
-      ))
     }
   }
 }
 
 pub fn close(conn: Connection) -> Result(Nil, ConnectionError) {
-  //! I have commented this out because I don't want AI's code to 
+  //! I have commented this out because I don't want AI's code to
   //! close the connection stupidly without my control.
   // node_socket_client.end(conn.socket)
-  echo conn.state
+  io.println(
+    "[Connection] Current state: " <> state_to_string(conn.state.current_state),
+  )
   Ok(Nil)
 }
 
