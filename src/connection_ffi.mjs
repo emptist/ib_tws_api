@@ -57,3 +57,8 @@ export function write_to_file(filename, content, append) {
     // Implementation remains the same
     return "ok";
 }
+
+export function float_to_string(value) {
+    // Convert float to string with 2 decimal places
+    return value.toFixed(2);
+}

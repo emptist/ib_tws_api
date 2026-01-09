@@ -52,7 +52,7 @@ pub type Message {
 /// Protocol format:
 /// - "API\0" (4 bytes: 'A', 'P', 'I', null byte)
 /// - 4-byte big-endian length of version string
-/// - Version string (e.g., "v100..200" or just "v100")
+/// - Version string (e.g., "v176.38" or just "v100")
 ///
 /// Parameters:
 /// - min_version: Minimum API version supported (typically 100)
@@ -60,11 +60,12 @@ pub type Message {
 ///
 /// Returns: BitArray containing the complete handshake message
 pub fn start_api_message(min_version: Int, max_version: Int) -> BitArray {
-  // Build version string: "v100" or "v100..200"
+  // Build version string: "v100" or "v176.38"
+  // Note: Use dot notation (.) not double dot (..) for version range
   let version_string = case min_version == max_version {
     True -> "v" <> int.to_string(min_version)
     False ->
-      "v" <> int.to_string(min_version) <> ".." <> int.to_string(max_version)
+      "v" <> int.to_string(min_version) <> "." <> int.to_string(max_version)
   }
 
   // Calculate version string length in bytes
@@ -104,13 +105,9 @@ pub fn start_api_message(min_version: Int, max_version: Int) -> BitArray {
   result
 }
 
-/// Create client ID message to send after handshake
-/// Client ID must be sent as a separate message after receiving server response
-///
-/// Parameters:
-/// - client_id: Client ID to identify this connection (unique per connection)
-///
-/// Returns: BitArray containing the client ID as a 4-byte integer
+/// DEPRECATED: Use message_encoder.start_api_message_with_length() instead
+/// This function is kept for backward compatibility but should not be used
+/// It sends raw binary instead of the correct NULL-separated format
 pub fn client_id_message(client_id: Int) -> BitArray {
   int_to_four_bytes_big_endian(client_id)
 }

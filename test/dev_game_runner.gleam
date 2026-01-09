@@ -1,5 +1,6 @@
 import account_data
 import account_message_handler
+import api_messages
 import connection
 import gleam/bit_array
 import gleam/int
@@ -7,7 +8,7 @@ import gleam/io
 import gleam/option.{Some}
 import message_encoder
 import order_management
-import protocol_fixed as protocol
+import protocol
 
 /// IB TWS Dev Game Runner
 /// This module systematically answers the dev game questions to test the API wrapper
@@ -61,10 +62,8 @@ pub fn main() {
 
       // Send handshake
       io.println("STEP 1: Sending handshake...")
-      let handshake = message_encoder.start_api_message(config.client_id)
-      let handshake_bytes =
-        message_encoder.add_length_prefix_to_string(handshake)
-      case connection.send_bytes(conn, handshake_bytes) {
+      let handshake = protocol.start_api_message(100, 200)
+      case connection.send_bytes(conn, handshake) {
         Ok(_) -> io.println("✅ Handshake sent")
         Error(e) ->
           io.println("❌ Error sending handshake: " <> error_to_string(e))
@@ -73,13 +72,17 @@ pub fn main() {
       // Wait for server response
       connection.sleep(1000)
 
-      // Send client ID
-      io.println("\nSTEP 2: Sending client ID...")
-      let client_id_msg = protocol.client_id_message(config.client_id)
-      case connection.send_bytes(conn, client_id_msg) {
-        Ok(_) -> io.println("✅ Client ID sent")
+      // Send START_API message with type-safe encoding
+      io.println(
+        "\nSTEP 2: Sending START_API message with type-safe encoding...",
+      )
+      let start_api_msg = api_messages.start_api_message(config.client_id)
+      let start_api_encoded = api_messages.encode_message(start_api_msg)
+      case connection.send_bytes(conn, start_api_encoded) {
+        Ok(_) ->
+          io.println("✅ START_API message sent with correct protocol format")
         Error(e) ->
-          io.println("❌ Error sending client ID: " <> error_to_string(e))
+          io.println("❌ Error sending START_API: " <> error_to_string(e))
       }
 
       // Wait for connection to be fully established
