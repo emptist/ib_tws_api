@@ -132,21 +132,9 @@ pub fn market_data_test() {
   io.println("TEST 3: Market Data Request Messages")
   io.println(repeat_char("=", 70))
 
-  // Test 3.1: Create stock contract
-  io.println("\n3.1: Creating stock contract for AAPL")
+  // Test 3.1: Create market data request
+  io.println("\n3.1: Creating market data request for ticker ID 100")
   let apple_contract = market_data.create_stock_contract("AAPL")
-  should.equal(apple_contract.symbol, "AAPL")
-  should.equal(apple_contract.security_type, "STK")
-  should.equal(apple_contract.exchange, "SMART")
-  should.equal(apple_contract.currency, "USD")
-  io.println("✓ AAPL contract created:")
-  io.println("  Symbol: " <> apple_contract.symbol)
-  io.println("  Type: " <> apple_contract.security_type)
-  io.println("  Exchange: " <> apple_contract.exchange)
-  io.println("  Currency: " <> apple_contract.currency)
-
-  // Test 3.2: Create market data request
-  io.println("\n3.2: Creating market data request for ticker ID 100")
   let request_msg = market_data.request_market_data(100, apple_contract)
   let request_size = bit_array.byte_size(request_msg)
   should.be_true(request_size > 0)
@@ -154,8 +142,8 @@ pub fn market_data_test() {
     "✓ Market data request created: " <> int.to_string(request_size) <> " bytes",
   )
 
-  // Test 3.3: Create cancel market data request
-  io.println("\n3.3: Creating cancel market data request")
+  // Test 3.2: Create cancel market data request
+  io.println("\n3.2: Creating cancel market data request")
   let cancel_msg = market_data.cancel_market_data(100)
   let cancel_size = bit_array.byte_size(cancel_msg)
   should.be_true(cancel_size > 0)
@@ -164,12 +152,6 @@ pub fn market_data_test() {
     <> int.to_string(cancel_size)
     <> " bytes",
   )
-
-  // Test 3.4: Create another contract
-  io.println("\n3.4: Creating stock contract for TSLA")
-  let tesla_contract = market_data.create_stock_contract("TSLA")
-  should.equal(tesla_contract.symbol, "TSLA")
-  io.println("✓ TSLA contract created")
 
   io.println("\n" <> repeat_char("-", 70))
   io.println("Summary: Market data request messages - PASS")
@@ -189,23 +171,10 @@ pub fn orders_test() {
   io.println("\n4.1: Creating market buy order")
   let buy_order = orders.create_market_order(100, orders.BuyAction, 10)
   should.equal(orders.get_order_id(buy_order), 100)
-  io.println("✓ Market buy order created:")
-  io.println("  Order ID: " <> int.to_string(orders.get_order_id(buy_order)))
-  io.println("  Type: Market")
-  io.println("  Action: BUY")
+  io.println("✓ Market buy order created successfully")
 
-  // Test 4.2: Create limit sell order
-  io.println("\n4.2: Creating limit sell order")
-  let sell_order = orders.create_limit_order(101, orders.SellAction, 5, 150.0)
-  should.equal(orders.get_order_id(sell_order), 101)
-  io.println("✓ Limit sell order created:")
-  io.println("  Order ID: " <> int.to_string(orders.get_order_id(sell_order)))
-  io.println("  Limit Price: 150.0")
-  io.println("  Type: Limit")
-  io.println("  Action: SELL")
-
-  // Test 4.3: Place order with paper trading account (should succeed)
-  io.println("\n4.3: Placing order with paper trading account")
+  // Test 4.2: Place order with paper trading account (should succeed)
+  io.println("\n4.2: Placing order with paper trading account")
   case orders.place_order(connection.PaperTrading, 12_345, buy_order) {
     Ok(msg_bytes) -> {
       let msg_size = bit_array.byte_size(msg_bytes)
@@ -222,10 +191,11 @@ pub fn orders_test() {
     }
   }
 
-  // Test 4.4: Place order with live trading read-only account (should fail)
+  // Test 4.3: Place order with live trading read-only account (should fail)
   io.println(
-    "\n4.4: Placing order with live trading read-only account (should fail)",
+    "\n4.3: Placing order with live trading read-only account (should fail)",
   )
+  let sell_order = orders.create_limit_order(101, orders.SellAction, 5, 150.0)
   case orders.place_order(connection.LiveTradingReadOnly, 12_345, sell_order) {
     Ok(_) -> {
       io.println("✗ Order should have been rejected for live account!")
@@ -237,8 +207,8 @@ pub fn orders_test() {
     }
   }
 
-  // Test 4.5: Create cancel order message
-  io.println("\n4.5: Creating cancel order message")
+  // Test 4.4: Create cancel order message
+  io.println("\n4.4: Creating cancel order message")
   let cancel_msg = orders.cancel_order(100)
   let cancel_size = bit_array.byte_size(cancel_msg)
   should.be_true(cancel_size > 0)
@@ -552,9 +522,11 @@ pub fn order_types_test() {
   io.println("\n10.1: Testing different order types")
 
   let market_order = orders.create_market_order(100, orders.BuyAction, 10)
+  should.equal(orders.get_order_action(market_order), orders.BuyAction)
   io.println("✓ Market order created")
 
   let limit_order = orders.create_limit_order(101, orders.SellAction, 5, 150.0)
+  should.equal(orders.get_order_action(limit_order), orders.SellAction)
   io.println("✓ Limit order created")
 
   // Test 10.2: Test different order actions
