@@ -39,5 +39,8 @@ pub fn receive(
 pub fn close(
   conn: connection.Connection,
 ) -> Result(Nil, connection.ConnectionError) {
-  connection.close(conn)
+  // Never close the connection, let tws handle it
+  // connection.close(conn)
+  echo conn
+  Ok(Nil)
 }
