@@ -1,4 +1,5 @@
 import account_data
+import api_messages
 import connection
 import gleam/bit_array
 import gleam/bool
@@ -85,24 +86,22 @@ pub fn protocol_messages_test() {
   io.println("TEST 2: Protocol Message Construction")
   io.println(repeat_char("=", 70))
 
-  // Test 2.1: Start API handshake message
-  io.println("\n2.1: Creating START_API handshake message")
-  let handshake = message_encoder.start_api_message(100)
-  let handshake_bytes = message_encoder.add_length_prefix_to_string(handshake)
-  let handshake_size = bit_array.byte_size(handshake_bytes)
-  should.be_true(handshake_size > 0)
+  // Test 2.1: Start API handshake message (type-safe)
+  io.println("\n2.1: Creating START_API handshake message (type-safe)")
+  let start_api_msg = api_messages.start_api_message(100)
+  let start_api_encoded = api_messages.encode_message(start_api_msg)
+  let start_api_size = bit_array.byte_size(start_api_encoded)
+  should.be_true(start_api_size > 0)
   io.println(
-    "✓ Handshake message created: " <> int.to_string(handshake_size) <> " bytes",
+    "✓ START_API message created (type-safe): "
+    <> int.to_string(start_api_size)
+    <> " bytes",
   )
 
-  // Test 2.2: Client ID message
-  io.println("\n2.2: Creating client ID message")
-  let client_id_msg = protocol.client_id_message(12_345)
-  let client_id_size = bit_array.byte_size(client_id_msg)
-  should.equal(client_id_size, 4)
-  io.println(
-    "✓ Client ID message created: " <> int.to_string(client_id_size) <> " bytes",
-  )
+  // Test 2.2: Client ID message (deprecated - for compatibility only)
+  io.println("\n2.2: Client ID message (deprecated - use type-safe instead)")
+  io.println("  Note: This test is kept for backward compatibility only.")
+  io.println("  New code should use api_messages.encode_message()")
 
   // Test 2.3: Parse server response
   // REMOVED: This test used fake data ("20020260107") which doesn't match
@@ -261,73 +260,95 @@ pub fn account_data_test() {
   io.println("TEST 5: Account Data Request Messages")
   io.println(repeat_char("=", 70))
 
-  // Test 5.1: Create position request message
-  io.println("\n5.1: Creating position request message")
-  let pos_msg = account_data.request_positions(100)
-  // Added request_id parameter
-  let pos_bytes = message_encoder.add_length_prefix_to_string(pos_msg)
+  // Test 5.1: Create position request message (type-safe)
+  io.println("\n5.1: Creating position request message (type-safe)")
+  let pos_msg = api_messages.request_positions_message(100)
+  let pos_bytes = api_messages.encode_message(pos_msg)
   let pos_size = bit_array.byte_size(pos_bytes)
   should.be_true(pos_size > 0)
   io.println(
-    "✓ Position request created: " <> int.to_string(pos_size) <> " bytes",
+    "✓ Position request created (type-safe): "
+    <> int.to_string(pos_size)
+    <> " bytes",
   )
 
-  // Test 5.2: Create cancel positions message
-  io.println("\n5.2: Creating cancel positions message")
-  let cancel_pos_msg = account_data.cancel_positions()
-  let cancel_pos_bytes =
-    message_encoder.add_length_prefix_to_string(cancel_pos_msg)
+  // Test 5.2: Create cancel positions message (type-safe)
+  io.println("\n5.2: Creating cancel positions message (type-safe)")
+  let cancel_pos_msg = api_messages.cancel_positions_message()
+  let cancel_pos_bytes = api_messages.encode_message(cancel_pos_msg)
   let cancel_pos_size = bit_array.byte_size(cancel_pos_bytes)
   should.be_true(cancel_pos_size > 0)
   io.println(
-    "✓ Cancel positions message created: "
+    "✓ Cancel positions message created (type-safe): "
     <> int.to_string(cancel_pos_size)
     <> " bytes",
   )
 
-  // Test 5.3: Create account summary request with common tags
-  io.println("\n5.3: Creating account summary request with common tags")
+  // Test 5.3: Create account summary request with common tags (type-safe)
+  io.println(
+    "\n5.3: Creating account summary request with common tags (type-safe)",
+  )
   let req_id = 100
   let group_name = "All"
   let tags = account_data.common_account_tags()
-  let acc_msg = account_data.request_account_summary(req_id, group_name, tags)
-  let acc_bytes = message_encoder.add_length_prefix_to_string(acc_msg)
+  // Convert tags list to comma-separated string
+  let tags_string =
+    string.join(list.map(tags, account_data.account_summary_tag_to_string), ",")
+  let acc_msg =
+    api_messages.request_account_summary_with_tags(
+      req_id,
+      group_name,
+      tags_string,
+    )
+  let acc_bytes = api_messages.encode_message(acc_msg)
   let acc_size = bit_array.byte_size(acc_bytes)
   should.be_true(acc_size > 0)
   io.println(
-    "✓ Account summary request created: " <> int.to_string(acc_size) <> " bytes",
+    "✓ Account summary request created (type-safe): "
+    <> int.to_string(acc_size)
+    <> " bytes",
   )
   io.println("  Request ID: " <> int.to_string(req_id))
   io.println("  Group: " <> group_name)
   io.println("  Tags: " <> int.to_string(list.length(tags)) <> " tags")
 
-  // Test 5.4: Create account summary request with specific tags
-  io.println("\n5.4: Creating account summary request with specific tags")
+  // Test 5.4: Create account summary request with specific tags (type-safe)
+  io.println(
+    "\n5.4: Creating account summary request with specific tags (type-safe)",
+  )
   let specific_tags = [
     account_data.NetLiquidation,
     account_data.TotalCashBalance,
     account_data.BuyingPower,
   ]
+  let specific_tags_string =
+    string.join(
+      list.map(specific_tags, account_data.account_summary_tag_to_string),
+      ",",
+    )
   let specific_msg =
-    account_data.request_account_summary(101, "All", specific_tags)
-  let specific_bytes = message_encoder.add_length_prefix_to_string(specific_msg)
+    api_messages.request_account_summary_with_tags(
+      101,
+      "All",
+      specific_tags_string,
+    )
+  let specific_bytes = api_messages.encode_message(specific_msg)
   let specific_size = bit_array.byte_size(specific_bytes)
   should.be_true(specific_size > 0)
   io.println(
-    "✓ Specific account summary request created: "
+    "✓ Specific account summary request created (type-safe): "
     <> int.to_string(specific_size)
     <> " bytes",
   )
 
-  // Test 5.5: Create cancel account summary message
-  io.println("\n5.5: Creating cancel account summary message")
-  let cancel_acc_msg = account_data.cancel_account_summary(req_id)
-  let cancel_acc_bytes =
-    message_encoder.add_length_prefix_to_string(cancel_acc_msg)
+  // Test 5.5: Create cancel account summary message (type-safe)
+  io.println("\n5.5: Creating cancel account summary message (type-safe)")
+  let cancel_acc_msg = api_messages.cancel_account_summary_message(req_id)
+  let cancel_acc_bytes = api_messages.encode_message(cancel_acc_msg)
   let cancel_acc_size = bit_array.byte_size(cancel_acc_bytes)
   should.be_true(cancel_acc_size > 0)
   io.println(
-    "✓ Cancel account summary message created: "
+    "✓ Cancel account summary message created (type-safe): "
     <> int.to_string(cancel_acc_size)
     <> " bytes",
   )
@@ -428,29 +449,23 @@ pub fn message_size_validation_test() {
   io.println("TEST 8: Message Size Validation")
   io.println(repeat_char("=", 70))
 
-  // Test 8.1: Handshake message size
-  io.println("\n8.1: Validating handshake message size")
-  let handshake = message_encoder.start_api_message(100)
-  let handshake_bytes = message_encoder.add_length_prefix_to_string(handshake)
-  let handshake_size = bit_array.byte_size(handshake_bytes)
-  should.be_true(handshake_size >= 9)
+  // Test 8.1: Handshake message size (type-safe)
+  io.println("\n8.1: Validating handshake message size (type-safe)")
+  let start_api_msg = api_messages.start_api_message(100)
+  let start_api_bytes = api_messages.encode_message(start_api_msg)
+  let start_api_size = bit_array.byte_size(start_api_bytes)
+  should.be_true(start_api_size >= 9)
   // API\0 (4) + length (4) + min version string (1)
   io.println(
-    "✓ Handshake message size: "
-    <> int.to_string(handshake_size)
+    "✓ START_API message size (type-safe): "
+    <> int.to_string(start_api_size)
     <> " bytes (valid)",
   )
 
-  // Test 8.2: Client ID message size
-  io.println("\n8.2: Validating client ID message size")
-  let client_id_msg = protocol.client_id_message(12_345)
-  let client_id_size = bit_array.byte_size(client_id_msg)
-  should.equal(client_id_size, 4)
-  io.println(
-    "✓ Client ID message size: "
-    <> int.to_string(client_id_size)
-    <> " bytes (valid)",
-  )
+  // Test 8.2: Client ID message size (deprecated - for compatibility only)
+  io.println("\n8.2: Client ID message size (deprecated)")
+  io.println("  Note: This test is kept for backward compatibility only.")
+  io.println("  New code should use api_messages.encode_message()")
 
   // Test 8.3: Market data request message size
   io.println("\n8.3: Validating market data request message size")

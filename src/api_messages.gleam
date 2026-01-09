@@ -15,9 +15,16 @@ pub type ApiMessage {
   /// Parameters: request_id, group_code, tags
   RequestAccountSummary(request_id: Int, group_code: String, tags: String)
 
+  /// CANCEL_ACCOUNT_SUMMARY message - cancel account summary subscription
+  /// Parameters: request_id
+  CancelAccountSummary(request_id: Int)
+
   /// REQ_POSITIONS message - request current positions
   /// Parameters: request_id
   RequestPositions(request_id: Int)
+
+  /// CANCEL_POSITIONS message - cancel positions subscription
+  CancelPositions
 
   /// REQ_OPEN_ORDERS message - request open orders
   RequestOpenOrders
@@ -88,11 +95,28 @@ pub fn encode_message(message: ApiMessage) -> BitArray {
       encode_tokens_with_length(tokens)
     }
 
+    CancelAccountSummary(request_id) -> {
+      let tokens = [
+        int.to_string(12),
+        // CANCEL_ACCOUNT_SUMMARY message ID
+        int.to_string(request_id),
+      ]
+      encode_tokens_with_length(tokens)
+    }
+
     RequestPositions(request_id) -> {
       let tokens = [
         int.to_string(7),
         // REQ_POSITIONS message ID
         int.to_string(request_id),
+      ]
+      encode_tokens_with_length(tokens)
+    }
+
+    CancelPositions -> {
+      let tokens = [
+        int.to_string(16),
+        // CANCEL_POSITIONS message ID
       ]
       encode_tokens_with_length(tokens)
     }
@@ -216,9 +240,32 @@ pub fn request_account_summary_message(request_id: Int) -> ApiMessage {
   )
 }
 
+/// Create REQ_ACCOUNT_SUMMARY message with custom parameters
+pub fn request_account_summary_with_tags(
+  request_id: Int,
+  group_code: String,
+  tags: String,
+) -> ApiMessage {
+  RequestAccountSummary(
+    request_id: request_id,
+    group_code: group_code,
+    tags: tags,
+  )
+}
+
+/// Create CANCEL_ACCOUNT_SUMMARY message
+pub fn cancel_account_summary_message(request_id: Int) -> ApiMessage {
+  CancelAccountSummary(request_id: request_id)
+}
+
 /// Create REQ_POSITIONS message
 pub fn request_positions_message(request_id: Int) -> ApiMessage {
   RequestPositions(request_id: request_id)
+}
+
+/// Create CANCEL_POSITIONS message
+pub fn cancel_positions_message() -> ApiMessage {
+  CancelPositions
 }
 
 /// Create REQ_OPEN_ORDERS message
