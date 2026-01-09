@@ -22,8 +22,9 @@ export function filter_control_characters(str) {
 }
 
 export function send_bytes(socket, data) {
-    // Convert BitArray to Buffer and send
-    const buffer = Buffer.from(data);
+    // Convert Gleam BitArray to Buffer
+    // Gleam BitArray has rawBuffer property containing the actual bytes
+    const buffer = Buffer.from(data.rawBuffer);
     try {
         socket.write(buffer);
         return true;

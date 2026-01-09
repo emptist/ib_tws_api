@@ -47,11 +47,15 @@ pub fn paper_trading_tcp_connection_test() {
   io.println("")
 
   let assert Ok(conn) = connection.connect(config)
-  io.println("✅ TCP connection established")
+  io.println(
+    "✅ TCP connection established at " <> connection.get_timestamp() <> " UTC",
+  )
 
   // Close connection
   let assert Ok(_) = connection.close(conn)
-  io.println("✅ Connection closed cleanly")
+  io.println(
+    "✅ Connection closed cleanly at " <> connection.get_timestamp() <> " UTC",
+  )
 
   io.println("")
   io.println(
@@ -72,14 +76,18 @@ pub fn paper_trading_handshake_test() {
   io.println("")
 
   let assert Ok(conn) = connection.connect(config)
-  io.println("✅ Connected to TWS")
+  io.println("✅ Connected to TWS at " <> connection.get_timestamp() <> " UTC")
 
   // Send handshake
-  io.println("📤 Sending handshake message...")
+  io.println(
+    "📤 Sending handshake message at " <> connection.get_timestamp() <> " UTC...",
+  )
   let handshake = protocol.start_api_message(100, 200)
 
   let assert Ok(_) = connection.send_bytes(conn, handshake)
-  io.println("✅ Handshake sent successfully")
+  io.println(
+    "✅ Handshake sent successfully at " <> connection.get_timestamp() <> " UTC",
+  )
 
   // Wait for server response
   io.println("⏳ Waiting 3 seconds for server response...")
@@ -107,25 +115,29 @@ pub fn paper_trading_client_id_test() {
   io.println("")
 
   let assert Ok(conn) = connection.connect(config)
-  io.println("✅ Connected to TWS")
+  io.println("✅ Connected to TWS at " <> connection.get_timestamp() <> " UTC")
 
   // Send handshake
-  io.println("📤 Step 1: Sending handshake...")
+  io.println(
+    "📤 Step 1: Sending handshake at " <> connection.get_timestamp() <> " UTC...",
+  )
   let handshake = protocol.start_api_message(100, 200)
 
   let assert Ok(_) = connection.send_bytes(conn, handshake)
-  io.println("✅ Handshake sent")
+  io.println("✅ Handshake sent at " <> connection.get_timestamp() <> " UTC")
 
   // Wait for server response
   io.println("⏳ Waiting 1 second...")
   connection.sleep(1000)
 
   // Send client ID
-  io.println("📤 Step 2: Sending client ID...")
+  io.println(
+    "📤 Step 2: Sending client ID at " <> connection.get_timestamp() <> " UTC...",
+  )
   let client_id_msg = protocol.client_id_message(client_id)
 
   let assert Ok(_) = connection.send_bytes(conn, client_id_msg)
-  io.println("✅ Client ID sent")
+  io.println("✅ Client ID sent at " <> connection.get_timestamp() <> " UTC")
 
   // Wait to see if connection stays open
   io.println("⏳ Waiting 2 seconds...")
@@ -150,7 +162,7 @@ pub fn paper_trading_request_account_data_test() {
   io.println("")
 
   let assert Ok(conn) = connection.connect(config)
-  io.println("✅ Connected to TWS")
+  io.println("✅ Connected to TWS at " <> connection.get_timestamp() <> " UTC")
 
   // Send handshake
   let handshake = protocol.start_api_message(100, 200)
@@ -158,12 +170,20 @@ pub fn paper_trading_request_account_data_test() {
   connection.sleep(1000)
 
   // Send client ID
+  io.println(
+    "📤 Sending client ID at " <> connection.get_timestamp() <> " UTC...",
+  )
   let client_id_msg = protocol.client_id_message(client_id)
   let _ = connection.send_bytes(conn, client_id_msg)
+  io.println("✅ Client ID sent at " <> connection.get_timestamp() <> " UTC")
   connection.sleep(1000)
 
   // Request account summary
-  io.println("📤 Requesting account summary...")
+  io.println(
+    "📤 Requesting account summary at "
+    <> connection.get_timestamp()
+    <> " UTC...",
+  )
   let account_summary_msg =
     account_data.request_account_summary(
       1,
@@ -174,16 +194,22 @@ pub fn paper_trading_request_account_data_test() {
     message_encoder.add_length_prefix_to_string(account_summary_msg)
 
   let assert Ok(_) = connection.send_bytes(conn, account_summary_bytes)
-  io.println("✅ Account summary request sent")
+  io.println(
+    "✅ Account summary request sent at " <> connection.get_timestamp() <> " UTC",
+  )
 
   // Request positions
-  io.println("📤 Requesting positions...")
+  io.println(
+    "📤 Requesting positions at " <> connection.get_timestamp() <> " UTC...",
+  )
   let positions_msg = account_data.request_positions(1)
   let positions_bytes =
     message_encoder.add_length_prefix_to_string(positions_msg)
 
   let assert Ok(_) = connection.send_bytes(conn, positions_bytes)
-  io.println("✅ Positions request sent")
+  io.println(
+    "✅ Positions request sent at " <> connection.get_timestamp() <> " UTC",
+  )
 
   // Wait for responses
   io.println("⏳ Waiting 5 seconds for responses...")
@@ -229,11 +255,17 @@ pub fn live_trading_readonly_connection_test() {
   io.println("")
 
   let assert Ok(conn) = connection.connect(config)
-  io.println("✅ Connected to live trading account (Read-Only)")
+  io.println(
+    "✅ Connected to live trading account (Read-Only) at "
+    <> connection.get_timestamp()
+    <> " UTC",
+  )
 
   // Close connection
   let assert Ok(_) = connection.close(conn)
-  io.println("✅ Connection closed cleanly")
+  io.println(
+    "✅ Connection closed cleanly at " <> connection.get_timestamp() <> " UTC",
+  )
 
   io.println("")
   io.println(
