@@ -44,6 +44,15 @@ See [docs/PROTOCOL_FIXES_SUMMARY.md](docs/PROTOCOL_FIXES_SUMMARY.md) for complet
 **Commits:**
 - be22649 - "fix: implement type-safe API message system to prevent protocol errors"
 - f9a2c46 - "docs: add comprehensive protocol fixes summary"
+- 8b146eb - "docs: update STATUS.md with protocol fixes completion"
+- 8d71f53 - "fix: update ib_tws_api_test.gleam to use type-safe API messages"
+
+**Impact:**
+- Resolves all ECONNRESET connection failures
+- Prevents protocol errors at compile time
+- Makes it impossible to send wrong message format
+- Provides clear migration path for existing code
+- All 96 tests pass successfully
 
 **Files Created:**
 - [`src/api_messages.gleam`](src/api_messages.gleam) - Type-safe message encoding system
@@ -61,6 +70,7 @@ See [docs/PROTOCOL_FIXES_SUMMARY.md](docs/PROTOCOL_FIXES_SUMMARY.md) for complet
 - Prevents protocol errors at compile time
 - Makes it impossible to send wrong message format
 - Provides clear migration path for existing code
+- All 96 tests pass successfully
 
 ---
 
@@ -80,6 +90,7 @@ See [docs/PROTOCOL_FIXES_SUMMARY.md](docs/PROTOCOL_FIXES_SUMMARY.md) for complet
 - [x] Fix handshake version string
 - [x] Create type-safe API message system
 - [x] Update dev_game_runner to use correct protocol
+- [x] Update all tests to use type-safe messages
 - [ ] Test with corrected implementation
 
 ### Phase 3: Connection State Machine 🔄 PENDING
