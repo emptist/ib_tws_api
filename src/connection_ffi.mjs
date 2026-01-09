@@ -62,3 +62,32 @@ export function float_to_string(value) {
     // Convert float to string with 2 decimal places
     return value.toFixed(2);
 }
+
+import net from 'net';
+
+export function check_port(host, port, timeout) {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+        let isOpen = false;
+
+        socket.setTimeout(timeout);
+
+        socket.on('connect', () => {
+            isOpen = true;
+            socket.destroy();
+            resolve(true);
+        });
+
+        socket.on('timeout', () => {
+            socket.destroy();
+            resolve(false);
+        });
+
+        socket.on('error', () => {
+            socket.destroy();
+            resolve(false);
+        });
+
+        socket.connect(port, host);
+    });
+}
